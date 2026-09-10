@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// WindUnit — единица, в которой пользователю показывают скорость ветра.
+// WindUnit is the unit wind speed is shown in.
 type WindUnit string
 
 const (
@@ -16,7 +16,7 @@ const (
 	WindUnitKMH WindUnit = "kmh"
 )
 
-// ParseWindUnit разбирает единицу ветра из строки.
+// ParseWindUnit reads a wind unit from a string.
 func ParseWindUnit(raw string) (WindUnit, error) {
 	switch WindUnit(strings.ToLower(strings.TrimSpace(raw))) {
 	case WindUnitMS:
@@ -28,7 +28,7 @@ func ParseWindUnit(raw string) (WindUnit, error) {
 	}
 }
 
-// Label возвращает подпись единицы для сообщения.
+// Label is kept for logs; user-facing labels come from the i18n layer.
 func (u WindUnit) Label() string {
 	if u == WindUnitKMH {
 		return "км/ч"
@@ -36,7 +36,7 @@ func (u WindUnit) Label() string {
 	return "м/с"
 }
 
-// FromMS переводит скорость из м/с в выбранную единицу.
+// FromMS converts a speed from m/s into this unit.
 func (u WindUnit) FromMS(speedMS float64) float64 {
 	if u == WindUnitKMH {
 		return speedMS * 3.6
@@ -44,13 +44,13 @@ func (u WindUnit) FromMS(speedMS float64) float64 {
 	return speedMS
 }
 
-// DayTime — время суток без даты.
+// DayTime is a time of day without a date.
 type DayTime struct {
 	Hour   int
 	Minute int
 }
 
-// ParseDayTime разбирает время в формате ЧЧ:ММ.
+// ParseDayTime reads a time in HH:MM form.
 func ParseDayTime(raw string) (DayTime, error) {
 	hour, minute, found := strings.Cut(strings.TrimSpace(raw), ":")
 	if !found {
@@ -67,23 +67,23 @@ func ParseDayTime(raw string) (DayTime, error) {
 	return DayTime{Hour: h, Minute: m}, nil
 }
 
-// String возвращает время как ЧЧ:ММ.
+// String renders the time as HH:MM.
 func (t DayTime) String() string {
 	return fmt.Sprintf("%02d:%02d", t.Hour, t.Minute)
 }
 
-// On возвращает это время суток на заданной дате в её локации.
+// On returns this time of day on the given date, in that date location.
 func (t DayTime) On(date time.Time) time.Time {
 	return time.Date(date.Year(), date.Month(), date.Day(), t.Hour, t.Minute, 0, 0, date.Location())
 }
 
-// HourWindow — активное окно часов суток, границы включительно.
+// HourWindow is the active window of the day, both bounds inclusive.
 type HourWindow struct {
 	Start int
 	End   int
 }
 
-// ParseHourWindow разбирает окно в формате ЧЧ-ЧЧ.
+// ParseHourWindow reads a window in HH-HH form.
 func ParseHourWindow(raw string) (HourWindow, error) {
 	start, end, found := strings.Cut(strings.TrimSpace(raw), "-")
 	if !found {
@@ -103,12 +103,12 @@ func ParseHourWindow(raw string) (HourWindow, error) {
 	return HourWindow{Start: from, End: to}, nil
 }
 
-// Contains сообщает, попадает ли час суток в окно.
+// Contains reports whether an hour falls inside the window.
 func (w HourWindow) Contains(hour int) bool {
 	return hour >= w.Start && hour <= w.End
 }
 
-// String возвращает окно как ЧЧ-ЧЧ.
+// String renders the window as HH-HH.
 func (w HourWindow) String() string {
 	return fmt.Sprintf("%02d-%02d", w.Start, w.End)
 }
@@ -124,10 +124,10 @@ func parseBounded(raw string, minValue, maxValue int) (int, error) {
 	return value, nil
 }
 
-// ErrLocationOutOfRange возвращается для координат вне допустимых пределов.
+// ErrLocationOutOfRange is returned for coordinates outside the valid range.
 var ErrLocationOutOfRange = errors.New("координаты вне допустимого диапазона")
 
-// Validate проверяет широту и долготу.
+// Validate checks latitude and longitude.
 func (l Location) Validate() error {
 	if l.Latitude < -90 || l.Latitude > 90 || l.Longitude < -180 || l.Longitude > 180 {
 		return fmt.Errorf("%w: %v, %v", ErrLocationOutOfRange, l.Latitude, l.Longitude)

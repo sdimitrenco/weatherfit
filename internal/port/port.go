@@ -1,4 +1,4 @@
-// Package port описывает интерфейсы, через которые usecase общается с внешним миром.
+// Package port declares the interfaces the use cases talk to the world through.
 package port
 
 import (
@@ -9,19 +9,19 @@ import (
 	"github.com/sdimitrenco/weatherfit/internal/domain"
 )
 
-// ForecastRequest — что именно запрашивается у провайдера прогноза.
+// ForecastRequest is what the forecast provider is asked for.
 type ForecastRequest struct {
 	Place    domain.Location
 	Timezone *time.Location
 	Days     int
 }
 
-// ForecastProvider отдаёт прогноз для точки.
+// ForecastProvider returns a forecast for a point.
 type ForecastProvider interface {
 	Forecast(ctx context.Context, request ForecastRequest) (domain.Forecast, error)
 }
 
-// SubscriberStore хранит подписчиков и их настройки.
+// SubscriberStore persists subscribers and their settings.
 type SubscriberStore interface {
 	Save(ctx context.Context, subscriber domain.Subscriber) error
 	Get(ctx context.Context, chatID int64) (domain.Subscriber, error)
@@ -32,10 +32,10 @@ type SubscriberStore interface {
 	Count(ctx context.Context) (int, error)
 }
 
-// ErrSubscriberNotFound возвращается, когда подписчика нет в хранилище.
+// ErrSubscriberNotFound is returned when the store holds no such subscriber.
 var ErrSubscriberNotFound = errors.New("подписчик не найден")
 
-// Place — найденный геокодером населённый пункт.
+// Place is a populated place returned by the geocoder.
 type Place struct {
 	Name    string
 	Country string
@@ -44,36 +44,36 @@ type Place struct {
 	Place   domain.Location
 }
 
-// Geocoder ищет населённые пункты по названию.
+// Geocoder searches places by name.
 type Geocoder interface {
 	Search(ctx context.Context, query string, limit int) ([]Place, error)
 }
 
-// TimezoneResolver определяет таймзону по координатам. Нужен для геопозиции,
-// присланной из Telegram, у которой нет названия города.
+// TimezoneResolver resolves a timezone from coordinates, which is what a
+// Telegram location share gives us instead of a city name.
 type TimezoneResolver interface {
 	ResolveTimezone(ctx context.Context, place domain.Location) (string, error)
 }
 
-// Notifier отправляет готовое сообщение получателю.
+// Notifier delivers a rendered message to a recipient.
 type Notifier interface {
 	Send(ctx context.Context, chatID int64, text string) error
 }
 
-// Clock отдаёт текущее время, чтобы «сейчас» можно было подменить в тестах.
+// Clock reports the current time so that "now" can be faked in tests.
 type Clock interface {
 	Now() time.Time
 }
 
-// ClockFunc адаптирует функцию к интерфейсу Clock.
+// ClockFunc adapts a function to Clock.
 type ClockFunc func() time.Time
 
-// Now возвращает текущее время.
+// Now returns the current time.
 func (f ClockFunc) Now() time.Time {
 	return f()
 }
 
-// SystemClock возвращает часы, отдающие системное время в заданной локации.
+// SystemClock returns a clock reporting system time in the given location.
 func SystemClock(location *time.Location) Clock {
 	return ClockFunc(func() time.Time {
 		return time.Now().In(location)

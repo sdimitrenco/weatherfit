@@ -6,33 +6,33 @@ func TestConditionForKnownCodes(t *testing.T) {
 	tests := []struct {
 		code int
 		icon string
-		text string
+		kind ConditionKind
 	}{
-		{code: 0, icon: "☀️", text: "ясно"},
-		{code: 1, icon: "🌤", text: "преимущественно ясно"},
-		{code: 2, icon: "⛅", text: "переменная облачность"},
-		{code: 3, icon: "☁️", text: "пасмурно"},
-		{code: 45, icon: "🌫", text: "туман"},
-		{code: 48, icon: "🌫", text: "туман"},
-		{code: 51, icon: "🌦", text: "морось"},
-		{code: 53, icon: "🌦", text: "морось"},
-		{code: 56, icon: "🌧🧊", text: "ледяная морось"},
-		{code: 57, icon: "🌧🧊", text: "ледяная морось"},
-		{code: 61, icon: "🌧", text: "слабый дождь"},
-		{code: 63, icon: "🌧", text: "дождь"},
-		{code: 65, icon: "🌧", text: "сильный дождь"},
-		{code: 66, icon: "🌧🧊", text: "ледяной дождь"},
-		{code: 67, icon: "🌧🧊", text: "ледяной дождь"},
-		{code: 71, icon: "❄️", text: "слабый снег"},
-		{code: 75, icon: "❄️", text: "сильный снег"},
-		{code: 77, icon: "❄️", text: "снежные зёрна"},
-		{code: 80, icon: "🌦", text: "ливневый дождь"},
-		{code: 82, icon: "🌦", text: "сильный ливень"},
-		{code: 85, icon: "🌨", text: "снегопад"},
-		{code: 86, icon: "🌨", text: "сильный снегопад"},
-		{code: 95, icon: "⛈", text: "гроза"},
-		{code: 96, icon: "⛈", text: "гроза с градом"},
-		{code: 99, icon: "⛈", text: "гроза с градом"},
+		{code: 0, icon: "☀️", kind: ConditionClear},
+		{code: 1, icon: "🌤", kind: ConditionMostlyClear},
+		{code: 2, icon: "⛅", kind: ConditionPartlyCloudy},
+		{code: 3, icon: "☁️", kind: ConditionOvercast},
+		{code: 45, icon: "🌫", kind: ConditionFog},
+		{code: 48, icon: "🌫", kind: ConditionFog},
+		{code: 51, icon: "🌦", kind: ConditionDrizzle},
+		{code: 53, icon: "🌦", kind: ConditionDrizzle},
+		{code: 56, icon: "🌧🧊", kind: ConditionFreezingDrizzle},
+		{code: 57, icon: "🌧🧊", kind: ConditionFreezingDrizzle},
+		{code: 61, icon: "🌧", kind: ConditionLightRain},
+		{code: 63, icon: "🌧", kind: ConditionRain},
+		{code: 65, icon: "🌧", kind: ConditionHeavyRain},
+		{code: 66, icon: "🌧🧊", kind: ConditionFreezingRain},
+		{code: 67, icon: "🌧🧊", kind: ConditionFreezingRain},
+		{code: 71, icon: "❄️", kind: ConditionLightSnow},
+		{code: 75, icon: "❄️", kind: ConditionHeavySnow},
+		{code: 77, icon: "❄️", kind: ConditionSnowGrains},
+		{code: 80, icon: "🌦", kind: ConditionRainShowers},
+		{code: 82, icon: "🌦", kind: ConditionHeavyRainShowers},
+		{code: 85, icon: "🌨", kind: ConditionSnowShowers},
+		{code: 86, icon: "🌨", kind: ConditionHeavySnowShowers},
+		{code: 95, icon: "⛈", kind: ConditionThunderstorm},
+		{code: 96, icon: "⛈", kind: ConditionThunderstormHail},
+		{code: 99, icon: "⛈", kind: ConditionThunderstormHail},
 	}
 
 	for _, tc := range tests {
@@ -43,8 +43,8 @@ func TestConditionForKnownCodes(t *testing.T) {
 		if condition.Icon != tc.icon {
 			t.Errorf("иконка кода %d = %q, ожидалось %q", tc.code, condition.Icon, tc.icon)
 		}
-		if condition.Text != tc.text {
-			t.Errorf("текст кода %d = %q, ожидалось %q", tc.code, condition.Text, tc.text)
+		if condition.Kind != tc.kind {
+			t.Errorf("вид кода %d = %q, ожидалось %q", tc.code, condition.Kind, tc.kind)
 		}
 		if condition.Code != tc.code {
 			t.Errorf("код = %d, ожидалось %d", condition.Code, tc.code)

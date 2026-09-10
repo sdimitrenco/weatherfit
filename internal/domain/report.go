@@ -1,12 +1,8 @@
 package domain
 
-import (
-	"fmt"
-	"strings"
-	"time"
-)
+import "time"
 
-// ReportHour — час прогноза с уже посчитанными иконками и уровнем ветра.
+// ReportHour is a forecast hour with icon and wind level already resolved.
 type ReportHour struct {
 	HourPoint
 	Condition Condition
@@ -14,7 +10,7 @@ type ReportHour struct {
 	WindLevel WindLevel
 }
 
-// Report — всё, что нужно для сообщения об одном дне.
+// Report holds everything a message about one day needs.
 type Report struct {
 	Location        Location
 	Date            time.Time
@@ -28,17 +24,32 @@ type Report struct {
 	Wind            WindSummary
 	Precipitation   PrecipitationAnalysis
 	Advice          OutfitAdvice
-	// UnknownCodes — коды WMO, которых нет в таблице; вызывающий слой пишет warning.
+	// UnknownCodes lists WMO codes missing from the table; the caller logs a warning.
 	UnknownCodes []int
 }
 
-// Headline — строка вердикта в начале сообщения.
+// HeadlineKind identifies a verdict line for translation lookup.
+type HeadlineKind string
+
+const (
+	HeadlineSnow         HeadlineKind = "snow"
+	HeadlineRainCoat     HeadlineKind = "rain_coat"
+	HeadlineRainUmbrella HeadlineKind = "rain_umbrella"
+	HeadlineRainMaybe    HeadlineKind = "rain_maybe"
+	HeadlineDry          HeadlineKind = "dry"
+	HeadlineOutfit       HeadlineKind = "outfit"
+)
+
+// Headline is one verdict line at the top of the message.
 type Headline struct {
-	Icon string
-	Text string
+	Kind         HeadlineKind
+	Icon         string
+	Band         BandID
+	TemperatureC Opt[float64]
+	Windows      []RainWindow
 }
 
-// Analyze превращает набор часов в готовый к рендеру отчёт.
+// Analyze turns a set of hours into a report ready for rendering.
 func Analyze(location Location, date time.Time, day DaySummary, hours []HourPoint) Report {
 	report := Report{
 		Location:        location,
@@ -98,47 +109,44 @@ func Analyze(location Location, date time.Time, day DaySummary, hours []HourPoin
 	}
 
 	report.Advice = BuildOutfitAdvice(OutfitInput{
-		ApparentMinC:   report.ApparentMinC,
-		ApparentMaxC:   report.ApparentMaxC,
-		Wind:           report.Wind,
-		Precipitation:  report.Precipitation,
-		UVIndexMax:     report.UVIndexMax,
-		RainWindowText: FormatRainWindows(report.Precipitation.Windows),
+		ApparentMinC:  report.ApparentMinC,
+		ApparentMaxC:  report.ApparentMaxC,
+		Wind:          report.Wind,
+		Precipitation: report.Precipitation,
+		UVIndexMax:    report.UVIndexMax,
 	})
 
 	return report
 }
 
-// Headlines возвращает первые строки сообщения: вердикт по дождю и по одежде.
+// Headlines returns the verdict lines: rain first, clothing second.
 func (r Report) Headlines() []Headline {
 	return []Headline{r.rainHeadline(), r.outfitHeadline()}
 }
 
 func (r Report) rainHeadline() Headline {
-	window := FormatRainWindows(r.Precipitation.Windows)
-	suffix := ""
-	if window != "" {
-		suffix = " — дождь " + window
+	windows := r.Precipitation.Windows
+
+	if r.Precipitation.SnowDominant() {
+		return Headline{Kind: HeadlineSnow, Icon: "❄️", Windows: windows}
 	}
 
 	switch r.Precipitation.Verdict {
 	case RainRequired:
 		if r.Precipitation.UmbrellaUseless(r.Wind) {
-			return Headline{Icon: "☂️", Text: "Бери дождевик" + suffix}
+			return Headline{Kind: HeadlineRainCoat, Icon: "☂️", Windows: windows}
 		}
-		return Headline{Icon: "☂️", Text: "Бери зонт" + suffix}
+		return Headline{Kind: HeadlineRainUmbrella, Icon: "☂️", Windows: windows}
 	case RainJustInCase:
-		return Headline{Icon: "🌂", Text: "Зонт на всякий случай" + suffix}
+		return Headline{Kind: HeadlineRainMaybe, Icon: "🌂", Windows: windows}
 	default:
-		if r.Precipitation.Snow {
-			return Headline{Icon: "❄️", Text: "Дождя нет, но будет снег"}
-		}
-		return Headline{Icon: "🙂", Text: "Дождя не ожидается"}
+		return Headline{Kind: HeadlineDry, Icon: "🙂"}
 	}
 }
 
 func (r Report) outfitHeadline() Headline {
 	band := bandFor(r.ApparentMinC)
+
 	icon := "🧥"
 	if value, ok := r.ApparentMinC.Get(); ok {
 		switch {
@@ -149,32 +157,17 @@ func (r Report) outfitHeadline() Headline {
 		}
 	}
 
-	if value, ok := r.ApparentMinC.Get(); ok {
-		return Headline{Icon: icon, Text: fmt.Sprintf("Утром ~%s: %s", degrees(value), band.kit)}
+	return Headline{
+		Kind:         HeadlineOutfit,
+		Icon:         icon,
+		Band:         band.id,
+		TemperatureC: r.ApparentMinC,
 	}
-	return Headline{Icon: icon, Text: band.kit}
 }
 
-// FormatRainWindows выводит окна осадков как «14–17 ч» или «10–11 и 14–17 ч».
-func FormatRainWindows(windows []RainWindow) string {
-	if len(windows) == 0 {
-		return ""
-	}
-	labels := make([]string, 0, len(windows))
-	for _, window := range windows {
-		labels = append(labels, window.hoursLabel())
-	}
-	if len(labels) == 1 {
-		return labels[0] + " ч"
-	}
-	return strings.Join(labels[:len(labels)-1], ", ") + " и " + labels[len(labels)-1] + " ч"
-}
-
-func (w RainWindow) hoursLabel() string {
-	if w.From.Equal(w.To) {
-		return fmt.Sprintf("%02d", w.From.Hour())
-	}
-	return fmt.Sprintf("%02d–%02d", w.From.Hour(), w.To.Hour())
+// Hours returns the first and last hour of the window.
+func (w RainWindow) Hours() (int, int) {
+	return w.From.Hour(), w.To.Hour()
 }
 
 func keepLower(current, candidate Opt[float64]) Opt[float64] {

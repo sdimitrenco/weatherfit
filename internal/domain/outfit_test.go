@@ -1,29 +1,52 @@
 package domain
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
+
+func kinds(advice OutfitAdvice) []AdviceKind {
+	result := make([]AdviceKind, 0, len(advice.Items))
+	for _, item := range advice.Items {
+		result = append(result, item.Kind)
+	}
+	return result
+}
+
+func hasKind(advice OutfitAdvice, kind AdviceKind) bool {
+	for _, item := range advice.Items {
+		if item.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+func itemOf(advice OutfitAdvice, kind AdviceKind) (AdviceItem, bool) {
+	for _, item := range advice.Items {
+		if item.Kind == kind {
+			return item, true
+		}
+	}
+	return AdviceItem{}, false
+}
 
 func TestBuildOutfitAdviceBands(t *testing.T) {
 	tests := []struct {
 		apparent float64
-		mustSay  string
+		want     BandID
 	}{
-		{apparent: 30, mustSay: "шорты"},
-		{apparent: 25, mustSay: "шорты"},
-		{apparent: 24, mustSay: "лёгкие брюки"},
-		{apparent: 18, mustSay: "лёгкие брюки"},
-		{apparent: 17, mustSay: "худи"},
-		{apparent: 12, mustSay: "худи"},
-		{apparent: 11, mustSay: "свитер"},
-		{apparent: 5, mustSay: "свитер"},
-		{apparent: 4, mustSay: "тёплая куртка"},
-		{apparent: 0, mustSay: "тёплая куртка"},
-		{apparent: -1, mustSay: "зимняя куртка"},
-		{apparent: -10, mustSay: "зимняя куртка"},
-		{apparent: -11, mustSay: "пуховик"},
-		{apparent: -30, mustSay: "пуховик"},
+		{apparent: 30, want: BandTShirtShorts},
+		{apparent: 25, want: BandTShirtShorts},
+		{apparent: 24, want: BandTShirtPants},
+		{apparent: 18, want: BandTShirtPants},
+		{apparent: 17, want: BandHoodieJacket},
+		{apparent: 12, want: BandHoodieJacket},
+		{apparent: 11, want: BandSweaterCoat},
+		{apparent: 5, want: BandSweaterCoat},
+		{apparent: 4, want: BandWarmCoat},
+		{apparent: 0, want: BandWarmCoat},
+		{apparent: -1, want: BandWinterCoat},
+		{apparent: -10, want: BandWinterCoat},
+		{apparent: -11, want: BandDownJacket},
+		{apparent: -30, want: BandDownJacket},
 	}
 
 	for _, tc := range tests {
@@ -31,111 +54,148 @@ func TestBuildOutfitAdviceBands(t *testing.T) {
 			ApparentMinC: Some(tc.apparent),
 			ApparentMaxC: Some(tc.apparent),
 		})
-		if !strings.Contains(advice.Text(), tc.mustSay) {
-			t.Errorf("для %v° совет %q не содержит %q", tc.apparent, advice.Text(), tc.mustSay)
+		base, ok := itemOf(advice, AdviceBase)
+		if !ok {
+			t.Fatalf("для %v° нет базового совета: %v", tc.apparent, kinds(advice))
+		}
+		if base.Band != tc.want {
+			t.Errorf("для %v° комплект = %q, ожидалось %q", tc.apparent, base.Band, tc.want)
+		}
+		if temperature, has := base.TemperatureC.Get(); !has || temperature != tc.apparent {
+			t.Errorf("для %v° температура в совете = %v", tc.apparent, temperature)
 		}
 	}
 }
 
-func TestBuildOutfitAdviceSentenceCount(t *testing.T) {
+func TestBuildOutfitAdviceLimitsItems(t *testing.T) {
 	advice := BuildOutfitAdvice(OutfitInput{
-		ApparentMinC:   Some[float64](11),
-		ApparentMaxC:   Some[float64](21),
-		Wind:           WindSummary{Level: WindStrong, MaxGustsMS: Some[float64](16), GustWarning: true},
-		Precipitation:  PrecipitationAnalysis{Verdict: RainRequired, Heavy: true, Thunderstorm: true},
-		UVIndexMax:     Some[float64](7),
-		RainWindowText: "14–17 ч",
+		ApparentMinC:  Some(11.0),
+		ApparentMaxC:  Some(21.0),
+		Wind:          WindSummary{Level: WindStrong, MaxGustsMS: Some(16.0), GustWarning: true},
+		Precipitation: PrecipitationAnalysis{Verdict: RainRequired, Heavy: true, Thunderstorm: true, LiquidMM: 5},
+		UVIndexMax:    Some(7.0),
 	})
 
-	if len(advice.Sentences) < 2 || len(advice.Sentences) > 4 {
-		t.Errorf("предложений = %d, ожидалось от 2 до 4:\n%s", len(advice.Sentences), advice.Text())
+	if len(advice.Items) < 2 || len(advice.Items) > maxAdviceItems {
+		t.Errorf("советов = %d, ожидалось от 2 до %d: %v", len(advice.Items), maxAdviceItems, kinds(advice))
 	}
-	if !strings.Contains(advice.Text(), "дождевик") {
-		t.Errorf("совет должен упоминать дождевик:\n%s", advice.Text())
+	if advice.Items[0].Kind != AdviceBase {
+		t.Errorf("первым идёт %q, ожидался базовый совет", advice.Items[0].Kind)
 	}
-	if !strings.Contains(advice.Text(), "гроза") {
-		t.Errorf("совет должен упоминать грозу:\n%s", advice.Text())
+	if !hasKind(advice, AdviceRainCoat) {
+		t.Errorf("нет совета про дождевик: %v", kinds(advice))
+	}
+	if !hasKind(advice, AdviceHazardThunder) {
+		t.Errorf("нет предупреждения о грозе: %v", kinds(advice))
+	}
+}
+
+func TestBuildOutfitAdviceKeepsOrder(t *testing.T) {
+	advice := BuildOutfitAdvice(OutfitInput{
+		ApparentMinC:  Some(12.0),
+		ApparentMaxC:  Some(22.0),
+		Precipitation: PrecipitationAnalysis{Verdict: RainJustInCase, LiquidMM: 1},
+	})
+
+	got := kinds(advice)
+	want := []AdviceKind{AdviceBase, AdviceLayeringWithOuter, AdviceRainMaybe}
+	if len(got) != len(want) {
+		t.Fatalf("советы = %v, ожидалось %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("совет %d = %q, ожидался %q", i, got[i], want[i])
+		}
 	}
 }
 
 func TestBuildOutfitAdviceLayering(t *testing.T) {
-	withSpread := BuildOutfitAdvice(OutfitInput{ApparentMinC: Some[float64](12), ApparentMaxC: Some[float64](20)})
-	if !strings.Contains(withSpread.Text(), "слоями") {
-		t.Errorf("при разнице 8° нужен совет про слои:\n%s", withSpread.Text())
+	withOuter := BuildOutfitAdvice(OutfitInput{ApparentMinC: Some(12.0), ApparentMaxC: Some(20.0)})
+	item, ok := itemOf(withOuter, AdviceLayeringWithOuter)
+	if !ok {
+		t.Fatalf("при разнице 8° нужен совет про слои: %v", kinds(withOuter))
 	}
-	if !strings.Contains(withSpread.Text(), "куртку можно снять") {
-		t.Errorf("нужен верхний слой, который можно снять:\n%s", withSpread.Text())
+	if maximum, has := item.TemperatureC.Get(); !has || maximum != 20 {
+		t.Errorf("в совете про слои максимум = %v, ожидалось 20", maximum)
 	}
 
-	withoutSpread := BuildOutfitAdvice(OutfitInput{ApparentMinC: Some[float64](12), ApparentMaxC: Some[float64](19.9)})
-	if strings.Contains(withoutSpread.Text(), "слоями") {
-		t.Errorf("при разнице меньше 8° совета про слои быть не должно:\n%s", withoutSpread.Text())
+	noOuter := BuildOutfitAdvice(OutfitInput{ApparentMinC: Some(25.0), ApparentMaxC: Some(34.0)})
+	if !hasKind(noOuter, AdviceLayering) {
+		t.Errorf("для летнего комплекта ожидался совет без верхнего слоя: %v", kinds(noOuter))
+	}
+
+	tooFlat := BuildOutfitAdvice(OutfitInput{ApparentMinC: Some(12.0), ApparentMaxC: Some(19.9)})
+	if hasKind(tooFlat, AdviceLayering) || hasKind(tooFlat, AdviceLayeringWithOuter) {
+		t.Errorf("при разнице меньше 8° совета про слои быть не должно: %v", kinds(tooFlat))
 	}
 }
 
-func TestBuildOutfitAdviceRainVariants(t *testing.T) {
+func TestBuildOutfitAdvicePrecipitation(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   OutfitInput
-		mustSay string
-		mustNot string
+		name   string
+		input  OutfitInput
+		want   AdviceKind
+		absent AdviceKind
 	}{
 		{
-			name: "сухо",
-			input: OutfitInput{
-				ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](18),
-				Precipitation: PrecipitationAnalysis{Verdict: RainNotNeeded},
-			},
-			mustNot: "зонт",
+			name:   "сухо",
+			input:  OutfitInput{ApparentMinC: Some(15.0), ApparentMaxC: Some(18.0)},
+			absent: AdviceRainUmbrella,
 		},
 		{
 			name: "зонт на всякий случай",
 			input: OutfitInput{
-				ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](18),
-				Precipitation:  PrecipitationAnalysis{Verdict: RainJustInCase},
-				RainWindowText: "14–15 ч",
+				ApparentMinC: Some(15.0), ApparentMaxC: Some(18.0),
+				Precipitation: PrecipitationAnalysis{Verdict: RainJustInCase, LiquidMM: 1},
 			},
-			mustSay: "на всякий случай",
+			want: AdviceRainMaybe,
 		},
 		{
 			name: "зонт обязательно",
 			input: OutfitInput{
-				ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](18),
-				Precipitation:  PrecipitationAnalysis{Verdict: RainRequired},
-				Wind:           WindSummary{Level: WindLight},
-				RainWindowText: "14–17 ч",
-			},
-			mustSay: "зонт обязательно",
-		},
-		{
-			name: "дождевик вместо зонта при сильном ветре",
-			input: OutfitInput{
-				ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](18),
-				Precipitation:  PrecipitationAnalysis{Verdict: RainRequired},
-				Wind:           WindSummary{Level: WindStrong},
-				RainWindowText: "14–17 ч",
-			},
-			mustSay: "зонт бесполезен",
-		},
-		{
-			name: "непромокаемая обувь при сильном дожде",
-			input: OutfitInput{
-				ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](18),
-				Precipitation: PrecipitationAnalysis{Verdict: RainRequired, Heavy: true},
+				ApparentMinC: Some(15.0), ApparentMaxC: Some(18.0),
+				Precipitation: PrecipitationAnalysis{Verdict: RainRequired, LiquidMM: 3},
 				Wind:          WindSummary{Level: WindLight},
 			},
-			mustSay: "непромокаемую",
+			want: AdviceRainUmbrella,
+		},
+		{
+			name: "дождевик при сильном ветре",
+			input: OutfitInput{
+				ApparentMinC: Some(15.0), ApparentMaxC: Some(18.0),
+				Precipitation: PrecipitationAnalysis{Verdict: RainRequired, LiquidMM: 3},
+				Wind:          WindSummary{Level: WindStrong},
+			},
+			want: AdviceRainCoat,
+		},
+		{
+			name: "непромокаемая обувь",
+			input: OutfitInput{
+				ApparentMinC: Some(15.0), ApparentMaxC: Some(18.0),
+				Precipitation: PrecipitationAnalysis{Verdict: RainRequired, Heavy: true, LiquidMM: 12},
+				Wind:          WindSummary{Level: WindLight},
+			},
+			want: AdviceWaterproofShoes,
+		},
+		{
+			name: "снег вместо дождя",
+			input: OutfitInput{
+				ApparentMinC: Some(-5.0), ApparentMaxC: Some(-2.0),
+				Precipitation: PrecipitationAnalysis{Verdict: RainRequired, Snow: true, SnowfallCM: 2},
+			},
+			want:   AdviceSnow,
+			absent: AdviceRainUmbrella,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			text := BuildOutfitAdvice(tc.input).Text()
-			if tc.mustSay != "" && !strings.Contains(text, tc.mustSay) {
-				t.Errorf("совет %q не содержит %q", text, tc.mustSay)
+			advice := BuildOutfitAdvice(tc.input)
+			if tc.want != "" && !hasKind(advice, tc.want) {
+				t.Errorf("нет совета %q: %v", tc.want, kinds(advice))
 			}
-			if tc.mustNot != "" && strings.Contains(text, tc.mustNot) {
-				t.Errorf("совет %q не должен содержать %q", text, tc.mustNot)
+			if tc.absent != "" && hasKind(advice, tc.absent) {
+				t.Errorf("совет %q лишний: %v", tc.absent, kinds(advice))
 			}
 		})
 	}
@@ -143,67 +203,75 @@ func TestBuildOutfitAdviceRainVariants(t *testing.T) {
 
 func TestBuildOutfitAdviceUV(t *testing.T) {
 	tests := []struct {
-		uv      float64
-		mustSay string
-		mustNot string
+		uv   float64
+		want AdviceKind
 	}{
-		{uv: 2, mustNot: "УФ"},
-		{uv: 3, mustSay: "очки"},
-		{uv: 5, mustSay: "очки"},
-		{uv: 6, mustSay: "SPF"},
-		{uv: 9, mustSay: "SPF"},
+		{uv: 2},
+		{uv: 3, want: AdviceUVGlasses},
+		{uv: 5, want: AdviceUVGlasses},
+		{uv: 6, want: AdviceUVSunscreen},
+		{uv: 9, want: AdviceUVSunscreen},
 	}
 
 	for _, tc := range tests {
-		text := BuildOutfitAdvice(OutfitInput{
-			ApparentMinC: Some[float64](20),
-			ApparentMaxC: Some[float64](22),
+		advice := BuildOutfitAdvice(OutfitInput{
+			ApparentMinC: Some(20.0),
+			ApparentMaxC: Some(22.0),
 			UVIndexMax:   Some(tc.uv),
-		}).Text()
-		if tc.mustSay != "" && !strings.Contains(text, tc.mustSay) {
-			t.Errorf("УФ %v: совет %q не содержит %q", tc.uv, text, tc.mustSay)
+		})
+		if tc.want == "" {
+			if hasKind(advice, AdviceUVGlasses) || hasKind(advice, AdviceUVSunscreen) {
+				t.Errorf("УФ %v: совета про УФ быть не должно: %v", tc.uv, kinds(advice))
+			}
+			continue
 		}
-		if tc.mustNot != "" && strings.Contains(text, tc.mustNot) {
-			t.Errorf("УФ %v: совет %q не должен содержать %q", tc.uv, text, tc.mustNot)
+		item, ok := itemOf(advice, tc.want)
+		if !ok {
+			t.Errorf("УФ %v: нет совета %q: %v", tc.uv, tc.want, kinds(advice))
+			continue
+		}
+		if index, has := item.UVIndex.Get(); !has || index != tc.uv {
+			t.Errorf("УФ %v: индекс в совете = %v", tc.uv, index)
 		}
 	}
 }
 
 func TestBuildOutfitAdviceWind(t *testing.T) {
 	strong := BuildOutfitAdvice(OutfitInput{
-		ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](17),
-		Wind: WindSummary{Level: WindStrong, MaxSpeedMS: Some[float64](9)},
-	}).Text()
-	if !strings.Contains(strong, "ветрозащитный") {
-		t.Errorf("при сильном ветре нужен ветрозащитный верх:\n%s", strong)
+		ApparentMinC: Some(15.0), ApparentMaxC: Some(17.0),
+		Wind: WindSummary{Level: WindStrong, MaxSpeedMS: Some(9.0)},
+	})
+	if !hasKind(strong, AdviceWindproof) {
+		t.Errorf("при сильном ветре нужен ветрозащитный верх: %v", kinds(strong))
 	}
 
 	gusty := BuildOutfitAdvice(OutfitInput{
-		ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](17),
-		Wind: WindSummary{Level: WindModerate, MaxGustsMS: Some[float64](16), GustWarning: true},
-	}).Text()
-	if !strings.Contains(gusty, "порывы до 16 м/с") {
-		t.Errorf("порывы должны попасть в совет:\n%s", gusty)
+		ApparentMinC: Some(15.0), ApparentMaxC: Some(17.0),
+		Wind: WindSummary{Level: WindModerate, MaxGustsMS: Some(16.0), GustWarning: true},
+	})
+	item, ok := itemOf(gusty, AdviceWindproofGusts)
+	if !ok {
+		t.Fatalf("порывы должны попасть в совет: %v", kinds(gusty))
+	}
+	if speed, has := item.SpeedMS.Get(); !has || speed != 16 {
+		t.Errorf("скорость порывов в совете = %v, ожидалось 16", speed)
+	}
+	if item.WindLevel != WindModerate {
+		t.Errorf("уровень ветра в совете = %v", item.WindLevel)
 	}
 
 	calm := BuildOutfitAdvice(OutfitInput{
-		ApparentMinC: Some[float64](15), ApparentMaxC: Some[float64](17),
+		ApparentMinC: Some(15.0), ApparentMaxC: Some(17.0),
 		Wind: WindSummary{Level: WindLight},
-	}).Text()
-	if strings.Contains(calm, "ветрозащитный") {
-		t.Errorf("при слабом ветре совета про ветрозащиту быть не должно:\n%s", calm)
+	})
+	if hasKind(calm, AdviceWindproof) || hasKind(calm, AdviceWindproofGusts) {
+		t.Errorf("при слабом ветре совета про ветрозащиту быть не должно: %v", kinds(calm))
 	}
 }
 
 func TestBuildOutfitAdviceWithoutTemperature(t *testing.T) {
-	advice := BuildOutfitAdvice(OutfitInput{
-		ApparentMinC: None[float64](),
-		ApparentMaxC: None[float64](),
-	})
-	if len(advice.Sentences) == 0 {
-		t.Fatal("совет не должен быть пустым")
-	}
-	if !strings.Contains(advice.Text(), "Температуры в ответе нет") {
-		t.Errorf("совет должен честно сказать про отсутствие данных:\n%s", advice.Text())
+	advice := BuildOutfitAdvice(OutfitInput{})
+	if !hasKind(advice, AdviceBaseNoTemperature) {
+		t.Errorf("без температуры ожидался честный совет: %v", kinds(advice))
 	}
 }

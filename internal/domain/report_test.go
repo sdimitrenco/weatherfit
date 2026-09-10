@@ -55,7 +55,7 @@ func TestAnalyzeAggregates(t *testing.T) {
 	if report.Hours[0].Condition.Icon != "☀️" {
 		t.Errorf("иконка первого часа = %q", report.Hours[0].Condition.Icon)
 	}
-	if point, ok := report.Hours[0].Compass.Get(); !ok || point.Rumb != "З" {
+	if point, ok := report.Hours[0].Compass.Get(); !ok || point.Rose != RoseWest {
 		t.Errorf("румб первого часа = %v", point)
 	}
 }
@@ -105,69 +105,69 @@ func TestHeadlines(t *testing.T) {
 	tests := []struct {
 		name     string
 		hours    []HourPoint
-		rainSays string
-		fitSays  string
+		rainKind HeadlineKind
+		band     BandID
 	}{
 		{
 			name:     "солнечный день",
 			hours:    sunnyHours(),
-			rainSays: "Дождя не ожидается",
-			fitSays:  "Утром ~11°",
+			rainKind: HeadlineDry,
+			band:     BandSweaterCoat,
 		},
 		{
 			name: "дождь с сильным ветром",
 			hours: []HourPoint{
 				{
 					Time: hourAt(14), ApparentTemperatureC: Some(12.0),
-					PrecipitationProbability: Some(80), PrecipitationMM: Some(1.2),
+					PrecipitationProbability: Some(80), PrecipitationMM: Some(1.2), RainMM: Some(1.2),
 					WeatherCode: Some(63), WindSpeedMS: Some(9.0), WindDirectionDeg: Some(225),
 					WindGustsMS: Some(15.0), IsDay: Some(true),
 				},
 				{
 					Time: hourAt(15), ApparentTemperatureC: Some(12.0),
-					PrecipitationProbability: Some(90), PrecipitationMM: Some(2.0),
+					PrecipitationProbability: Some(90), PrecipitationMM: Some(2.0), RainMM: Some(2.0),
 					WeatherCode: Some(63), WindSpeedMS: Some(9.0), WindDirectionDeg: Some(225),
 					WindGustsMS: Some(15.0), IsDay: Some(true),
 				},
 			},
-			rainSays: "Бери дождевик",
-			fitSays:  "худи",
+			rainKind: HeadlineRainCoat,
+			band:     BandHoodieJacket,
 		},
 		{
 			name: "дождь без ветра",
 			hours: []HourPoint{
 				{
 					Time: hourAt(14), ApparentTemperatureC: Some(16.0),
-					PrecipitationProbability: Some(80), PrecipitationMM: Some(1.2),
+					PrecipitationProbability: Some(80), PrecipitationMM: Some(1.2), RainMM: Some(1.2),
 					WeatherCode: Some(63), WindSpeedMS: Some(2.0), WindGustsMS: Some(4.0),
 				},
 			},
-			rainSays: "Бери зонт",
-			fitSays:  "Утром ~16°",
+			rainKind: HeadlineRainUmbrella,
+			band:     BandHoodieJacket,
 		},
 		{
 			name: "морось на всякий случай",
 			hours: []HourPoint{
 				{
 					Time: hourAt(9), ApparentTemperatureC: Some(19.0),
-					PrecipitationProbability: Some(40), PrecipitationMM: Some(0.2),
+					PrecipitationProbability: Some(40), PrecipitationMM: Some(0.2), RainMM: Some(0.2),
 					WeatherCode: Some(51),
 				},
 			},
-			rainSays: "Зонт на всякий случай",
-			fitSays:  "лёгкие брюки",
+			rainKind: HeadlineRainMaybe,
+			band:     BandTShirtPants,
 		},
 		{
-			name: "снег без дождя",
+			name: "снег",
 			hours: []HourPoint{
 				{
 					Time: hourAt(9), ApparentTemperatureC: Some(-3.0),
-					PrecipitationProbability: Some(10), PrecipitationMM: Some(0.0),
+					PrecipitationProbability: Some(80), PrecipitationMM: Some(0.5),
 					SnowfallCM: Some(0.5), WeatherCode: Some(73),
 				},
 			},
-			rainSays: "будет снег",
-			fitSays:  "зимняя куртка",
+			rainKind: HeadlineSnow,
+			band:     BandWinterCoat,
 		},
 	}
 
@@ -178,11 +178,14 @@ func TestHeadlines(t *testing.T) {
 			if len(headlines) != 2 {
 				t.Fatalf("строк вердикта = %d, ожидалось 2", len(headlines))
 			}
-			if !strings.Contains(headlines[0].Text, tc.rainSays) {
-				t.Errorf("вердикт по дождю = %q, ожидалось упоминание %q", headlines[0].Text, tc.rainSays)
+			if headlines[0].Kind != tc.rainKind {
+				t.Errorf("вердикт по дождю = %q, ожидался %q", headlines[0].Kind, tc.rainKind)
 			}
-			if !strings.Contains(headlines[1].Text, tc.fitSays) {
-				t.Errorf("вердикт по одежде = %q, ожидалось упоминание %q", headlines[1].Text, tc.fitSays)
+			if headlines[1].Kind != HeadlineOutfit {
+				t.Errorf("вторая строка = %q, ожидался вердикт по одежде", headlines[1].Kind)
+			}
+			if headlines[1].Band != tc.band {
+				t.Errorf("комплект = %q, ожидался %q", headlines[1].Band, tc.band)
 			}
 			for _, headline := range headlines {
 				if headline.Icon == "" {
@@ -193,12 +196,21 @@ func TestHeadlines(t *testing.T) {
 	}
 }
 
-func TestHeadlinesFitInPushPreview(t *testing.T) {
-	report := Analyze(Location{}, hourAt(0), DaySummary{}, sunnyHours())
-	headlines := report.Headlines()
-	preview := headlines[0].Icon + " " + headlines[0].Text + " " + headlines[1].Icon + " " + headlines[1].Text
-	if length := len([]rune(preview)); length > 100 {
-		t.Errorf("первые строки занимают %d символов, ожидалось не больше 100:\n%s", length, preview)
+func TestHeadlinesCarryRainWindows(t *testing.T) {
+	hours := []HourPoint{
+		{Time: hourAt(13), PrecipitationProbability: Some(10), PrecipitationMM: Some(0.0)},
+		{Time: hourAt(14), PrecipitationProbability: Some(80), PrecipitationMM: Some(1.2), RainMM: Some(1.2)},
+		{Time: hourAt(15), PrecipitationProbability: Some(80), PrecipitationMM: Some(1.2), RainMM: Some(1.2)},
+	}
+
+	report := Analyze(Location{}, hourAt(0), DaySummary{}, hours)
+	windows := report.Headlines()[0].Windows
+	if len(windows) != 1 {
+		t.Fatalf("окон = %d, ожидалось 1", len(windows))
+	}
+	from, to := windows[0].Hours()
+	if from != 14 || to != 15 {
+		t.Errorf("окно = %d–%d, ожидалось 14–15", from, to)
 	}
 }
 

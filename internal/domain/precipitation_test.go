@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -128,6 +130,19 @@ func TestAnalyzePrecipitationVerdicts(t *testing.T) {
 	}
 }
 
+func windowHours(windows []RainWindow) string {
+	parts := make([]string, 0, len(windows))
+	for _, window := range windows {
+		from, to := window.Hours()
+		if from == to {
+			parts = append(parts, fmt.Sprintf("%02d", from))
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%02d-%02d", from, to))
+	}
+	return strings.Join(parts, ",")
+}
+
 func TestAnalyzePrecipitationWindows(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -142,7 +157,7 @@ func TestAnalyzePrecipitationWindows(t *testing.T) {
 		{
 			name:  "один час",
 			specs: []hourSpec{{hour: 7}, {hour: 14, probability: 80, amountMM: 1.0}, {hour: 15}},
-			want:  "14 ч",
+			want:  "14",
 		},
 		{
 			name: "склеенный интервал",
@@ -154,7 +169,7 @@ func TestAnalyzePrecipitationWindows(t *testing.T) {
 				{hour: 17, probability: 60, amountMM: 0.3},
 				{hour: 18},
 			},
-			want: "14–17 ч",
+			want: "14-17",
 		},
 		{
 			name: "два интервала",
@@ -166,7 +181,7 @@ func TestAnalyzePrecipitationWindows(t *testing.T) {
 				{hour: 16, probability: 80, amountMM: 1.0},
 				{hour: 17, probability: 80, amountMM: 1.0},
 			},
-			want: "10–11 и 16–17 ч",
+			want: "10-11,16-17",
 		},
 		{
 			name: "три интервала",
@@ -175,14 +190,14 @@ func TestAnalyzePrecipitationWindows(t *testing.T) {
 				{hour: 10, probability: 60, amountMM: 0.4},
 				{hour: 12, probability: 60, amountMM: 0.4},
 			},
-			want: "08, 10 и 12 ч",
+			want: "08,10,12",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			analysis := AnalyzePrecipitation(buildHours(tc.specs))
-			if got := FormatRainWindows(analysis.Windows); got != tc.want {
+			if got := windowHours(analysis.Windows); got != tc.want {
 				t.Errorf("окна = %q, ожидалось %q", got, tc.want)
 			}
 		})
@@ -196,8 +211,8 @@ func TestAnalyzePrecipitationGapInDataBreaksWindow(t *testing.T) {
 		{Time: hourAt(16), PrecipitationProbability: Some(80), PrecipitationMM: Some(1.0)},
 	}
 	analysis := AnalyzePrecipitation(hours)
-	if got := FormatRainWindows(analysis.Windows); got != "14 и 16 ч" {
-		t.Errorf("окна = %q, ожидалось «14 и 16 ч»", got)
+	if got := windowHours(analysis.Windows); got != "14,16" {
+		t.Errorf("окна = %q, ожидалось «14,16»", got)
 	}
 }
 
@@ -309,5 +324,37 @@ func TestUmbrellaUseless(t *testing.T) {
 				t.Errorf("UmbrellaUseless = %v, ожидалось %v", got, tc.expected)
 			}
 		})
+	}
+}
+
+func TestSnowDominant(t *testing.T) {
+	snowy := AnalyzePrecipitation([]HourPoint{{
+		Time:                     hourAt(9),
+		PrecipitationProbability: Some(80),
+		PrecipitationMM:          Some(0.5),
+		RainMM:                   Some(0.0),
+		ShowersMM:                Some(0.0),
+		SnowfallCM:               Some(0.6),
+		WeatherCode:              Some(73),
+	}})
+	if !snowy.SnowDominant() {
+		t.Error("осадки из снега должны считаться снежными")
+	}
+
+	sleet := AnalyzePrecipitation([]HourPoint{{
+		Time:                     hourAt(9),
+		PrecipitationProbability: Some(80),
+		PrecipitationMM:          Some(1.5),
+		RainMM:                   Some(1.0),
+		SnowfallCM:               Some(0.3),
+		WeatherCode:              Some(73),
+	}})
+	if sleet.SnowDominant() {
+		t.Error("при жидких осадках день не считается снежным")
+	}
+
+	rain := AnalyzePrecipitation(buildHours([]hourSpec{{hour: 14, probability: 80, amountMM: 1.0, code: 63}}))
+	if rain.SnowDominant() {
+		t.Error("дождь не должен считаться снегом")
 	}
 }

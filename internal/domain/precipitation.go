@@ -2,7 +2,7 @@ package domain
 
 import "time"
 
-// RainVerdict — нужна ли защита от дождя.
+// RainVerdict says whether rain protection is needed.
 type RainVerdict int
 
 const (
@@ -11,7 +11,7 @@ const (
 	RainRequired
 )
 
-// Пороги осадков.
+// Precipitation thresholds.
 const (
 	ProbabilityMaybePercent    = 30
 	ProbabilityLikelyPercent   = 60
@@ -23,17 +23,20 @@ const (
 	PrecipitationSumHeavyMM    = 10.0
 )
 
-// RainWindow — непрерывный интервал мокрых часов, границы включительно.
+// RainWindow is a continuous run of wet hours, both bounds inclusive.
 type RainWindow struct {
 	From time.Time
 	To   time.Time
 }
 
-// PrecipitationAnalysis — итог по осадкам за набор часов.
+// PrecipitationAnalysis summarizes precipitation over a set of hours.
 type PrecipitationAnalysis struct {
-	Verdict        RainVerdict
-	Heavy          bool
-	TotalMM        float64
+	Verdict RainVerdict
+	Heavy   bool
+	TotalMM float64
+	// LiquidMM is rain plus showers without snow, telling a snowy day from a wet one.
+	LiquidMM       float64
+	SnowfallCM     float64
 	MaxHourlyMM    float64
 	MaxProbability Opt[int]
 	Windows        []RainWindow
@@ -42,8 +45,8 @@ type PrecipitationAnalysis struct {
 	Snow           bool
 }
 
-// Wet сообщает, что в час ожидаются заметные осадки: вероятность не ниже 30%
-// и хотя бы 0.1 мм.
+// Wet reports meaningful precipitation in this hour: at least 30% probability
+// and at least 0.1 mm.
 func (h HourPoint) Wet() bool {
 	probability, hasProbability := h.PrecipitationProbability.Get()
 	amount, hasAmount := h.PrecipitationMM.Get()
@@ -53,7 +56,7 @@ func (h HourPoint) Wet() bool {
 	return probability >= ProbabilityMaybePercent && amount >= PrecipitationTraceMM
 }
 
-// AnalyzePrecipitation считает вердикт по дождю, окна осадков и опасные явления.
+// AnalyzePrecipitation computes the rain verdict, precipitation windows and hazards.
 func AnalyzePrecipitation(hours []HourPoint) PrecipitationAnalysis {
 	analysis := PrecipitationAnalysis{
 		Verdict:        RainNotNeeded,
@@ -74,6 +77,9 @@ func AnalyzePrecipitation(hours []HourPoint) PrecipitationAnalysis {
 				analysis.Heavy = true
 			}
 		}
+
+		analysis.LiquidMM += hour.RainMM.Or(0) + hour.ShowersMM.Or(0)
+		analysis.SnowfallCM += hour.SnowfallCM.Or(0)
 
 		if probability, ok := hour.PrecipitationProbability.Get(); ok {
 			if current, has := analysis.MaxProbability.Get(); !has || probability > current {
@@ -119,7 +125,13 @@ func AnalyzePrecipitation(hours []HourPoint) PrecipitationAnalysis {
 	return analysis
 }
 
-// UmbrellaUseless сообщает, что при таком ветре зонт бесполезен и нужен дождевик.
+// SnowDominant reports that the precipitation is snow rather than rain, so
+// boots and a hood matter more than an umbrella.
+func (a PrecipitationAnalysis) SnowDominant() bool {
+	return a.Snow && a.LiquidMM < PrecipitationTraceMM
+}
+
+// UmbrellaUseless reports that this wind makes an umbrella pointless.
 func (a PrecipitationAnalysis) UmbrellaUseless(wind WindSummary) bool {
 	if a.Verdict != RainRequired {
 		return false

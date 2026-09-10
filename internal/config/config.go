@@ -1,4 +1,4 @@
-// Package config загружает и валидирует конфигурацию из переменных окружения.
+// Package config loads and validates configuration from the environment.
 package config
 
 import (
@@ -10,20 +10,21 @@ import (
 	"time"
 
 	"github.com/sdimitrenco/weatherfit/internal/domain"
+	"github.com/sdimitrenco/weatherfit/internal/i18n"
 )
 
 const chatIDsSeparator = ","
 
-// Getenv читает значение переменной окружения по имени.
+// Getenv reads one environment variable.
 type Getenv func(key string) string
 
-// Config — полная конфигурация приложения. Локация, время рассылки и активное
-// окно задают значения по умолчанию для новых подписчиков; дальше каждый
-// подписчик меняет их сам через бота.
+// Config holds the whole application configuration. The place, report time and
+// active window are defaults for new subscribers; each subscriber changes their
+// own settings through the bot afterwards.
 type Config struct {
 	TelegramBotToken string
-	// AllowedChatIDs пуст в открытом режиме. Если список задан, бот отвечает
-	// только этим chat_id.
+	// AllowedChatIDs is empty in open mode. When set, the bot answers only
+	// those chat ids.
 	AllowedChatIDs []int64
 	AdminChatIDs   []int64
 
@@ -33,6 +34,8 @@ type Config struct {
 	DefaultReportTime  domain.DayTime
 	DefaultActiveHours domain.HourWindow
 	DefaultWindUnit    domain.WindUnit
+	DefaultLang        i18n.Lang
+	HourlyLayout       string
 
 	DatabasePath string
 	LogLevel     slog.Level
@@ -46,12 +49,13 @@ const (
 	defaultReportTime   = "07:00"
 	defaultActiveHours  = "07-22"
 	defaultWindUnit     = "ms"
+	defaultHourlyLayout = "lines"
 	defaultLogLevel     = "info"
 	defaultDatabasePath = "data/weatherfit.db"
 )
 
-// Load собирает конфигурацию, подставляя значения по умолчанию, и возвращает
-// все найденные ошибки валидации сразу.
+// Load reads the configuration, applies defaults and reports every validation
+// problem at once.
 func Load(getenv Getenv) (*Config, error) {
 	var problems []error
 	fail := func(format string, args ...any) {
@@ -109,6 +113,12 @@ func Load(getenv Getenv) (*Config, error) {
 		fail("WIND_UNIT: %w", err)
 	}
 
+	cfg.DefaultLang = i18n.Parse(getenv("DEFAULT_LANG"))
+	cfg.HourlyLayout = strings.ToLower(valueOr(getenv("HOURLY_LAYOUT"), defaultHourlyLayout))
+	if cfg.HourlyLayout != "lines" && cfg.HourlyLayout != "table" {
+		fail("HOURLY_LAYOUT: %q не поддерживается, ожидается lines или table", cfg.HourlyLayout)
+	}
+
 	cfg.LogLevel, err = parseLogLevel(valueOr(getenv("LOG_LEVEL"), defaultLogLevel))
 	if err != nil {
 		fail("LOG_LEVEL: %w", err)
@@ -120,12 +130,12 @@ func Load(getenv Getenv) (*Config, error) {
 	return cfg, nil
 }
 
-// Private сообщает, что бот работает по списку разрешённых chat_id.
+// Private reports that the bot only answers whitelisted chat ids.
 func (c *Config) Private() bool {
 	return len(c.AllowedChatIDs) > 0
 }
 
-// Allows сообщает, разрешено ли этому chat_id пользоваться ботом.
+// Allows reports whether this chat id may use the bot.
 func (c *Config) Allows(chatID int64) bool {
 	if !c.Private() {
 		return true
@@ -133,15 +143,16 @@ func (c *Config) Allows(chatID int64) bool {
 	return contains(c.AllowedChatIDs, chatID)
 }
 
-// Admin сообщает, что chat_id указан в списке администраторов.
+// Admin reports whether this chat id is an administrator.
 func (c *Config) Admin(chatID int64) bool {
 	return contains(c.AdminChatIDs, chatID)
 }
 
-// NewSubscriber создаёт подписчика с настройками по умолчанию.
+// NewSubscriber builds a subscriber with the configured defaults.
 func (c *Config) NewSubscriber(chatID int64, now time.Time) domain.Subscriber {
 	return domain.Subscriber{
 		ChatID:      chatID,
+		Lang:        string(c.DefaultLang),
 		Place:       c.DefaultPlace,
 		TZName:      c.DefaultTZName,
 		ReportTime:  c.DefaultReportTime,

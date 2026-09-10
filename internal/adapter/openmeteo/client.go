@@ -1,4 +1,4 @@
-// Package openmeteo — HTTP-клиент Open-Meteo Forecast API и маппинг ответа в домен.
+// Package openmeteo is the Open-Meteo Forecast API client and its mapping into the domain.
 package openmeteo
 
 import (
@@ -18,14 +18,14 @@ import (
 )
 
 const (
-	// DefaultBaseURL — публичный endpoint Forecast API.
+	// DefaultBaseURL is the public Forecast API endpoint.
 	DefaultBaseURL = "https://api.open-meteo.com/v1/forecast"
-	// DefaultTimeout — таймаут одного запроса.
+	// DefaultTimeout bounds one request.
 	DefaultTimeout = 10 * time.Second
-	// DefaultUserAgent отправляется с каждым запросом.
+	// DefaultUserAgent is sent with every request.
 	DefaultUserAgent = "weatherfit-bot/1.0 (personal telegram weather bot)"
 
-	// windSpeedUnit — единицы, в которых домен хранит скорость ветра.
+	// windSpeedUnit is the unit the domain stores wind speed in.
 	windSpeedUnit = "ms"
 
 	maxBodyBytes  = 4 << 20
@@ -75,21 +75,21 @@ var dailyVariables = []string{
 	"sunset",
 }
 
-// Options — параметры создания клиента.
+// Options configures the client.
 type Options struct {
 	BaseURL    string
 	UserAgent  string
 	HTTPClient *http.Client
 }
 
-// Client запрашивает прогноз в Open-Meteo. Один клиент обслуживает любые точки.
+// Client queries Open-Meteo. One client serves any number of points.
 type Client struct {
 	baseURL    string
 	userAgent  string
 	httpClient *http.Client
 }
 
-// New создаёт клиент, подставляя значения по умолчанию.
+// New builds a client, filling in defaults.
 func New(options Options) *Client {
 	if options.BaseURL == "" {
 		options.BaseURL = DefaultBaseURL
@@ -108,7 +108,7 @@ func New(options Options) *Client {
 	}
 }
 
-// Forecast запрашивает прогноз на request.Days календарных дней начиная с сегодняшнего.
+// Forecast requests request.Days calendar days starting today.
 func (c *Client) Forecast(ctx context.Context, request port.ForecastRequest) (domain.Forecast, error) {
 	if request.Days < 1 || request.Days > 16 {
 		return domain.Forecast{}, fmt.Errorf("openmeteo: forecast_days=%d вне диапазона [1, 16]", request.Days)
@@ -179,7 +179,7 @@ func statusError(status int, body []byte) error {
 	return fmt.Errorf("API ответил %d", status)
 }
 
-// ResolveTimezone определяет имя таймзоны по координатам через timezone=auto.
+// ResolveTimezone resolves a timezone name from coordinates via timezone=auto.
 func (c *Client) ResolveTimezone(ctx context.Context, place domain.Location) (string, error) {
 	if err := place.Validate(); err != nil {
 		return "", fmt.Errorf("openmeteo: %w", err)

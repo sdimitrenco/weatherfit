@@ -1,4 +1,4 @@
-// Package geocode ищет города через Open-Meteo Geocoding API.
+// Package geocode searches cities through the Open-Meteo Geocoding API.
 package geocode
 
 import (
@@ -18,22 +18,22 @@ import (
 )
 
 const (
-	// DefaultBaseURL — endpoint поиска по названию.
+	// DefaultBaseURL is the search endpoint.
 	DefaultBaseURL = "https://geocoding-api.open-meteo.com/v1/search"
-	// DefaultTimeout — таймаут одного запроса.
+	// DefaultTimeout bounds one request.
 	DefaultTimeout = 10 * time.Second
-	// DefaultUserAgent отправляется с каждым запросом.
+	// DefaultUserAgent is sent with every request.
 	DefaultUserAgent = "weatherfit-bot/1.0 (personal telegram weather bot)"
-	// DefaultLanguage — язык названий в ответе.
+	// DefaultLanguage is the language of place names in the response.
 	DefaultLanguage = "ru"
 
 	maxBodyBytes = 1 << 20
 )
 
-// ErrNothingFound возвращается, когда по запросу нет ни одного города.
+// ErrNothingFound is returned when the query matches no place.
 var ErrNothingFound = errors.New("geocode: ничего не найдено")
 
-// Options — параметры создания клиента.
+// Options configures the client.
 type Options struct {
 	BaseURL    string
 	UserAgent  string
@@ -41,7 +41,7 @@ type Options struct {
 	HTTPClient *http.Client
 }
 
-// Client ищет города по названию.
+// Client searches places by name.
 type Client struct {
 	baseURL    string
 	userAgent  string
@@ -49,7 +49,7 @@ type Client struct {
 	httpClient *http.Client
 }
 
-// New создаёт клиент, подставляя значения по умолчанию.
+// New builds a client, filling in defaults.
 func New(options Options) *Client {
 	if options.BaseURL == "" {
 		options.BaseURL = DefaultBaseURL
@@ -83,7 +83,7 @@ type searchResponse struct {
 	Reason string `json:"reason"`
 }
 
-// Search ищет города по названию, возвращая не больше limit вариантов.
+// Search looks up places by name, returning at most limit matches.
 func (c *Client) Search(ctx context.Context, query string, limit int) ([]port.Place, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -135,7 +135,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]port.Pl
 	return places, nil
 }
 
-// Title собирает человекочитаемое название вида «Дрезден, Саксония, Германия».
+// Title builds a readable place name such as "Dresden, Saxony, Germany".
 func Title(place port.Place) string {
 	parts := make([]string, 0, 3)
 	for _, part := range []string{place.Name, place.Admin, place.Country} {

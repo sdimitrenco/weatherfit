@@ -2,7 +2,7 @@ package domain
 
 import "math"
 
-// WindLevel — сила ветра по средней скорости, по мотивам шкалы Бофорта.
+// WindLevel groups mean wind speed into Beaufort-like bands.
 type WindLevel int
 
 const (
@@ -13,7 +13,7 @@ const (
 	WindVeryStrong
 )
 
-// Пороги силы ветра в м/с.
+// Wind thresholds in m/s.
 const (
 	WindCalmMaxMS     = 1.6
 	WindLightMaxMS    = 5.5
@@ -22,7 +22,7 @@ const (
 	GustWarningMS     = 14.0
 )
 
-// WindLevelFor возвращает уровень ветра для средней скорости в м/с.
+// WindLevelFor returns the level for a mean speed in m/s.
 func WindLevelFor(speedMS float64) WindLevel {
 	switch {
 	case speedMS < WindCalmMaxMS:
@@ -38,25 +38,7 @@ func WindLevelFor(speedMS float64) WindLevel {
 	}
 }
 
-// Label возвращает название уровня.
-func (l WindLevel) Label() string {
-	switch l {
-	case WindCalm:
-		return "штиль"
-	case WindLight:
-		return "слабый"
-	case WindModerate:
-		return "умеренный"
-	case WindStrong:
-		return "сильный"
-	case WindVeryStrong:
-		return "штормовой"
-	default:
-		return "штиль"
-	}
-}
-
-// Icon возвращает иконку уровня.
+// Icon returns the level icon.
 func (l WindLevel) Icon() string {
 	switch l {
 	case WindCalm, WindLight:
@@ -72,7 +54,7 @@ func (l WindLevel) Icon() string {
 	}
 }
 
-// Alert возвращает знак предупреждения для сильного ветра, иначе пустую строку.
+// Alert returns a warning sign for strong wind, or an empty string.
 func (l WindLevel) Alert() string {
 	switch l {
 	case WindStrong:
@@ -84,50 +66,57 @@ func (l WindLevel) Alert() string {
 	}
 }
 
-// NeedsWindproof сообщает, что нужен ветрозащитный верх.
+// NeedsWindproof reports that a windproof layer is needed.
 func (l WindLevel) NeedsWindproof() bool {
 	return l >= WindStrong
 }
 
-// CompassPoint — румб направления, откуда дует, и стрелка, куда дует.
+// CompassPoint holds the compass point the wind blows from and an arrow
+// pointing where it blows to.
 type CompassPoint struct {
-	Rumb  string
+	Rose  Rose
 	Arrow string
 }
 
-var compassPoints = []CompassPoint{
-	{Rumb: "С", Arrow: "↓"},
-	{Rumb: "СВ", Arrow: "↙"},
-	{Rumb: "В", Arrow: "←"},
-	{Rumb: "ЮВ", Arrow: "↖"},
-	{Rumb: "Ю", Arrow: "↑"},
-	{Rumb: "ЮЗ", Arrow: "↗"},
-	{Rumb: "З", Arrow: "→"},
-	{Rumb: "СЗ", Arrow: "↘"},
-}
+// Rose indexes the eight compass points clockwise from north.
+type Rose int
 
-// CompassFor переводит направление «откуда дует» в румб и стрелку «куда дует».
+const (
+	RoseNorth Rose = iota
+	RoseNorthEast
+	RoseEast
+	RoseSouthEast
+	RoseSouth
+	RoseSouthWest
+	RoseWest
+	RoseNorthWest
+)
+
+var arrows = [8]string{"↓", "↙", "←", "↖", "↑", "↗", "→", "↘"}
+
+// CompassFor converts a "wind from" bearing into a compass point and an arrow
+// pointing where the wind blows to.
 func CompassFor(fromDegrees Opt[int]) Opt[CompassPoint] {
 	degrees, ok := fromDegrees.Get()
 	if !ok {
 		return None[CompassPoint]()
 	}
 	normalized := math.Mod(math.Mod(float64(degrees), 360)+360, 360)
-	index := int((normalized+22.5)/45) % len(compassPoints)
-	return Some(compassPoints[index])
+	index := int((normalized+22.5)/45) % len(arrows)
+	return Some(CompassPoint{Rose: Rose(index), Arrow: arrows[index]})
 }
 
-// WindSummary — сводка по ветру за набор часов.
+// WindSummary aggregates wind over a set of hours.
 type WindSummary struct {
 	MaxSpeedMS Opt[float64]
 	MaxGustsMS Opt[float64]
-	// Direction — направление в самый ветреный час набора.
+	// Direction is taken from the windiest hour of the set.
 	Direction   Opt[CompassPoint]
 	Level       WindLevel
 	GustWarning bool
 }
 
-// SummarizeWind считает максимальную скорость, порывы и направление на пике.
+// SummarizeWind computes peak speed, peak gusts and the direction at the peak.
 func SummarizeWind(hours []HourPoint) WindSummary {
 	summary := WindSummary{
 		MaxSpeedMS: None[float64](),

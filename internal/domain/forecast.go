@@ -2,15 +2,15 @@ package domain
 
 import "time"
 
-// Location — точка, для которой запрашивается прогноз.
+// Location is the point a forecast is requested for.
 type Location struct {
 	Name      string
 	Latitude  float64
 	Longitude float64
 }
 
-// HourPoint — прогноз на один час. Скорости ветра всегда в м/с, снег в см,
-// осадки в мм, независимо от единиц, в которых пришёл ответ API.
+// HourPoint is the forecast for one hour. Wind is always in m/s, snow in cm
+// and precipitation in mm, whatever units the API response used.
 type HourPoint struct {
 	Time                     time.Time
 	TemperatureC             Opt[float64]
@@ -28,7 +28,7 @@ type HourPoint struct {
 	IsDay                    Opt[bool]
 }
 
-// CurrentPoint — фактическая погода на момент запроса.
+// CurrentPoint is the observed weather at request time.
 type CurrentPoint struct {
 	Time                 time.Time
 	TemperatureC         Opt[float64]
@@ -42,7 +42,7 @@ type CurrentPoint struct {
 	IsDay                Opt[bool]
 }
 
-// DaySummary — сводка по календарному дню из daily-блока ответа.
+// DaySummary is the daily block of the response for one calendar day.
 type DaySummary struct {
 	Date                        time.Time
 	TemperatureMaxC             Opt[float64]
@@ -59,7 +59,7 @@ type DaySummary struct {
 	Sunset                      Opt[time.Time]
 }
 
-// Forecast — прогноз на несколько дней в локальной таймзоне точки.
+// Forecast holds several days in the local timezone of the point.
 type Forecast struct {
 	Location Location
 	Timezone *time.Location
@@ -68,7 +68,7 @@ type Forecast struct {
 	Hours    []HourPoint
 }
 
-// Day возвращает сводку по календарной дате в таймзоне прогноза.
+// Day returns the summary for a calendar date in the forecast timezone.
 func (f Forecast) Day(date time.Time) (DaySummary, bool) {
 	target := date.In(f.timezone()).Format(time.DateOnly)
 	for _, day := range f.Days {
@@ -79,7 +79,7 @@ func (f Forecast) Day(date time.Time) (DaySummary, bool) {
 	return DaySummary{}, false
 }
 
-// HoursOfDay возвращает часы, попадающие в календарную дату прогноза.
+// HoursOfDay returns the hours belonging to a calendar date.
 func (f Forecast) HoursOfDay(date time.Time) []HourPoint {
 	target := date.In(f.timezone()).Format(time.DateOnly)
 	hours := make([]HourPoint, 0, 24)
@@ -91,7 +91,7 @@ func (f Forecast) HoursOfDay(date time.Time) []HourPoint {
 	return hours
 }
 
-// HoursInRange возвращает часы в полуинтервале [from, to).
+// HoursInRange returns the hours in the half-open interval [from, to).
 func (f Forecast) HoursInRange(from, to time.Time) []HourPoint {
 	hours := make([]HourPoint, 0, 24)
 	for _, hour := range f.Hours {

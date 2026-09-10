@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// PendingAction — чего бот ждёт от пользователя следующим сообщением.
+// PendingAction is what the bot expects in the user's next message.
 type PendingAction string
 
 const (
@@ -14,24 +14,25 @@ const (
 	PendingTime PendingAction = "time"
 )
 
-// Subscriber — получатель рассылки со своими настройками.
+// Subscriber is a recipient with personal settings.
 type Subscriber struct {
 	ChatID      int64
+	Lang        string
 	Place       Location
 	TZName      string
 	ReportTime  DayTime
 	ActiveHours HourWindow
 	WindUnit    WindUnit
 	Paused      bool
-	// LastSentDate — дата последней успешной рассылки в таймзоне подписчика,
-	// в формате 2006-01-02. Пустая строка означает, что рассылки ещё не было.
+	// LastSentDate is the date of the last delivered report in the subscriber
+	// timezone, formatted 2006-01-02. Empty means nothing was sent yet.
 	LastSentDate string
 	Pending      PendingAction
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
 
-// Timezone загружает локацию подписчика, подставляя UTC при неизвестном имени.
+// Timezone loads the subscriber location, falling back to UTC.
 func (s Subscriber) Timezone() *time.Location {
 	location, err := time.LoadLocation(s.TZName)
 	if err != nil {
@@ -40,7 +41,7 @@ func (s Subscriber) Timezone() *time.Location {
 	return location
 }
 
-// Validate проверяет настройки подписчика.
+// Validate checks the subscriber settings.
 func (s Subscriber) Validate() error {
 	if s.ChatID == 0 {
 		return fmt.Errorf("chat_id не задан")
@@ -60,9 +61,8 @@ func (s Subscriber) Validate() error {
 	return nil
 }
 
-// DueAt сообщает, пора ли отправлять утренний отчёт в момент now.
-// Отчёт считается пропущенным и досылается, если время рассылки уже прошло,
-// но день ещё не вышел за пределы активного окна.
+// DueAt reports whether the morning report should go out at now. A missed
+// report is still delivered while the day has not passed the active window.
 func (s Subscriber) DueAt(now time.Time) bool {
 	if s.Paused {
 		return false

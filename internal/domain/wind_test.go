@@ -9,26 +9,26 @@ func TestCompassForBoundaries(t *testing.T) {
 	tests := []struct {
 		name  string
 		from  int
-		rumb  string
+		rose  Rose
 		arrow string
 	}{
-		{name: "север 0", from: 0, rumb: "С", arrow: "↓"},
-		{name: "север 360", from: 360, rumb: "С", arrow: "↓"},
-		{name: "север 720", from: 720, rumb: "С", arrow: "↓"},
-		{name: "граница 22 остаётся севером", from: 22, rumb: "С", arrow: "↓"},
-		{name: "граница 23 уже северо-восток", from: 23, rumb: "СВ", arrow: "↙"},
-		{name: "северо-восток 45", from: 45, rumb: "СВ", arrow: "↙"},
-		{name: "граница 67", from: 67, rumb: "СВ", arrow: "↙"},
-		{name: "восток 90", from: 90, rumb: "В", arrow: "←"},
-		{name: "юго-восток 135", from: 135, rumb: "ЮВ", arrow: "↖"},
-		{name: "юг 180", from: 180, rumb: "Ю", arrow: "↑"},
-		{name: "юго-запад 225", from: 225, rumb: "ЮЗ", arrow: "↗"},
-		{name: "запад 270", from: 270, rumb: "З", arrow: "→"},
-		{name: "северо-запад 315", from: 315, rumb: "СЗ", arrow: "↘"},
-		{name: "граница 337 северо-запад", from: 337, rumb: "СЗ", arrow: "↘"},
-		{name: "граница 338 север", from: 338, rumb: "С", arrow: "↓"},
-		{name: "отрицательный -45 северо-запад", from: -45, rumb: "СЗ", arrow: "↘"},
-		{name: "отрицательный -90 запад", from: -90, rumb: "З", arrow: "→"},
+		{name: "север 0", from: 0, rose: RoseNorth, arrow: "↓"},
+		{name: "север 360", from: 360, rose: RoseNorth, arrow: "↓"},
+		{name: "север 720", from: 720, rose: RoseNorth, arrow: "↓"},
+		{name: "граница 22 остаётся севером", from: 22, rose: RoseNorth, arrow: "↓"},
+		{name: "граница 23 уже северо-восток", from: 23, rose: RoseNorthEast, arrow: "↙"},
+		{name: "северо-восток 45", from: 45, rose: RoseNorthEast, arrow: "↙"},
+		{name: "граница 67", from: 67, rose: RoseNorthEast, arrow: "↙"},
+		{name: "восток 90", from: 90, rose: RoseEast, arrow: "←"},
+		{name: "юго-восток 135", from: 135, rose: RoseSouthEast, arrow: "↖"},
+		{name: "юг 180", from: 180, rose: RoseSouth, arrow: "↑"},
+		{name: "юго-запад 225", from: 225, rose: RoseSouthWest, arrow: "↗"},
+		{name: "запад 270", from: 270, rose: RoseWest, arrow: "→"},
+		{name: "северо-запад 315", from: 315, rose: RoseNorthWest, arrow: "↘"},
+		{name: "граница 337 северо-запад", from: 337, rose: RoseNorthWest, arrow: "↘"},
+		{name: "граница 338 север", from: 338, rose: RoseNorth, arrow: "↓"},
+		{name: "отрицательный -45 северо-запад", from: -45, rose: RoseNorthWest, arrow: "↘"},
+		{name: "отрицательный -90 запад", from: -90, rose: RoseWest, arrow: "→"},
 	}
 
 	for _, tc := range tests {
@@ -37,8 +37,8 @@ func TestCompassForBoundaries(t *testing.T) {
 			if !ok {
 				t.Fatal("румб пуст")
 			}
-			if point.Rumb != tc.rumb {
-				t.Errorf("румб для %d° = %q, ожидалось %q", tc.from, point.Rumb, tc.rumb)
+			if point.Rose != tc.rose {
+				t.Errorf("румб для %d° = %d, ожидалось %d", tc.from, point.Rose, tc.rose)
 			}
 			if point.Arrow != tc.arrow {
 				t.Errorf("стрелка для %d° = %q, ожидалось %q", tc.from, point.Arrow, tc.arrow)
@@ -67,21 +67,20 @@ func TestWindLevelForThresholds(t *testing.T) {
 	tests := []struct {
 		speed float64
 		want  WindLevel
-		label string
 	}{
-		{speed: 0, want: WindCalm, label: "штиль"},
-		{speed: 1.59, want: WindCalm, label: "штиль"},
-		{speed: 1.6, want: WindLight, label: "слабый"},
-		{speed: 5.4, want: WindLight, label: "слабый"},
-		{speed: 5.49, want: WindLight, label: "слабый"},
-		{speed: 5.5, want: WindModerate, label: "умеренный"},
-		{speed: 7.9, want: WindModerate, label: "умеренный"},
-		{speed: 7.99, want: WindModerate, label: "умеренный"},
-		{speed: 8.0, want: WindStrong, label: "сильный"},
-		{speed: 13.8, want: WindStrong, label: "сильный"},
-		{speed: 13.89, want: WindStrong, label: "сильный"},
-		{speed: 13.9, want: WindVeryStrong, label: "штормовой"},
-		{speed: 30, want: WindVeryStrong, label: "штормовой"},
+		{speed: 0, want: WindCalm},
+		{speed: 1.59, want: WindCalm},
+		{speed: 1.6, want: WindLight},
+		{speed: 5.4, want: WindLight},
+		{speed: 5.49, want: WindLight},
+		{speed: 5.5, want: WindModerate},
+		{speed: 7.9, want: WindModerate},
+		{speed: 7.99, want: WindModerate},
+		{speed: 8.0, want: WindStrong},
+		{speed: 13.8, want: WindStrong},
+		{speed: 13.89, want: WindStrong},
+		{speed: 13.9, want: WindVeryStrong},
+		{speed: 30, want: WindVeryStrong},
 	}
 
 	for _, tc := range tests {
@@ -89,9 +88,7 @@ func TestWindLevelForThresholds(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("WindLevelFor(%v) = %v, ожидалось %v", tc.speed, got, tc.want)
 		}
-		if got.Label() != tc.label {
-			t.Errorf("метка для %v = %q, ожидалось %q", tc.speed, got.Label(), tc.label)
-		}
+
 	}
 }
 
@@ -144,8 +141,8 @@ func TestSummarizeWind(t *testing.T) {
 		t.Errorf("уровень = %v, ожидался сильный", summary.Level)
 	}
 	point, ok := summary.Direction.Get()
-	if !ok || point.Rumb != "ЮЗ" {
-		t.Errorf("направление на пике = %v, ожидалось ЮЗ", point)
+	if !ok || point.Rose != RoseSouthWest {
+		t.Errorf("направление на пике = %v, ожидался юго-запад", point)
 	}
 }
 

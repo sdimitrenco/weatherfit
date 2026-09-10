@@ -1,4 +1,4 @@
-// Package sqlite хранит подписчиков в файле SQLite.
+// Package sqlite stores subscribers in a SQLite file.
 package sqlite
 
 import (
@@ -19,6 +19,7 @@ import (
 const schema = `
 CREATE TABLE IF NOT EXISTS subscribers (
 	chat_id      INTEGER PRIMARY KEY,
+	lang         TEXT    NOT NULL DEFAULT 'en',
 	place_name   TEXT    NOT NULL,
 	latitude     REAL    NOT NULL,
 	longitude    REAL    NOT NULL,
@@ -34,12 +35,12 @@ CREATE TABLE IF NOT EXISTS subscribers (
 );
 `
 
-// Store — реализация port.SubscriberStore на SQLite без cgo.
+// Store implements port.SubscriberStore on cgo-free SQLite.
 type Store struct {
 	db *sql.DB
 }
 
-// Open открывает базу по пути, создавая каталог и схему при необходимости.
+// Open opens the database, creating the directory and schema if needed.
 func Open(ctx context.Context, path string) (*Store, error) {
 	if directory := filepath.Dir(path); directory != "" && directory != "." {
 		if err := os.MkdirAll(directory, 0o755); err != nil {
@@ -66,12 +67,12 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-// Close закрывает базу.
+// Close closes the database.
 func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// Save создаёт или обновляет подписчика целиком.
+// Save inserts or replaces a subscriber.
 func (s *Store) Save(ctx context.Context, subscriber domain.Subscriber) error {
 	if err := subscriber.Validate(); err != nil {
 		return fmt.Errorf("sqlite: подписчик невалиден: %w", err)
@@ -79,10 +80,11 @@ func (s *Store) Save(ctx context.Context, subscriber domain.Subscriber) error {
 
 	const query = `
 INSERT INTO subscribers (
-	chat_id, place_name, latitude, longitude, tz_name, report_time, active_hours,
+	chat_id, lang, place_name, latitude, longitude, tz_name, report_time, active_hours,
 	wind_unit, paused, last_sent, pending, created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(chat_id) DO UPDATE SET
+	lang = excluded.lang,
 	place_name = excluded.place_name,
 	latitude = excluded.latitude,
 	longitude = excluded.longitude,
@@ -97,6 +99,7 @@ ON CONFLICT(chat_id) DO UPDATE SET
 
 	_, err := s.db.ExecContext(ctx, query,
 		subscriber.ChatID,
+		subscriber.Lang,
 		subscriber.Place.Name,
 		subscriber.Place.Latitude,
 		subscriber.Place.Longitude,
@@ -116,7 +119,7 @@ ON CONFLICT(chat_id) DO UPDATE SET
 	return nil
 }
 
-// Get возвращает подписчика или port.ErrSubscriberNotFound.
+// Get returns a subscriber or port.ErrSubscriberNotFound.
 func (s *Store) Get(ctx context.Context, chatID int64) (domain.Subscriber, error) {
 	const query = `SELECT ` + columns + ` FROM subscribers WHERE chat_id = ?`
 
@@ -131,7 +134,7 @@ func (s *Store) Get(ctx context.Context, chatID int64) (domain.Subscriber, error
 	return subscriber, nil
 }
 
-// All возвращает всех подписчиков в порядке добавления.
+// All returns every subscriber ordered by chat id.
 func (s *Store) All(ctx context.Context) ([]domain.Subscriber, error) {
 	const query = `SELECT ` + columns + ` FROM subscribers ORDER BY chat_id`
 
@@ -155,7 +158,7 @@ func (s *Store) All(ctx context.Context) ([]domain.Subscriber, error) {
 	return subscribers, nil
 }
 
-// Delete удаляет подписчика.
+// Delete removes a subscriber.
 func (s *Store) Delete(ctx context.Context, chatID int64) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM subscribers WHERE chat_id = ?`, chatID); err != nil {
 		return fmt.Errorf("sqlite: не удалось удалить подписчика %d: %w", chatID, err)
@@ -163,7 +166,7 @@ func (s *Store) Delete(ctx context.Context, chatID int64) error {
 	return nil
 }
 
-// MarkSent запоминает дату последней успешной рассылки.
+// MarkSent records the date of the last delivered report.
 func (s *Store) MarkSent(ctx context.Context, chatID int64, date string) error {
 	const query = `UPDATE subscribers SET last_sent = ?, updated_at = ? WHERE chat_id = ?`
 	if _, err := s.db.ExecContext(ctx, query, date, formatTime(time.Now().UTC()), chatID); err != nil {
@@ -172,7 +175,7 @@ func (s *Store) MarkSent(ctx context.Context, chatID int64, date string) error {
 	return nil
 }
 
-// SetPending запоминает, какого ввода бот ждёт от пользователя.
+// SetPending records what input the bot expects next.
 func (s *Store) SetPending(ctx context.Context, chatID int64, pending domain.PendingAction) error {
 	const query = `UPDATE subscribers SET pending = ?, updated_at = ? WHERE chat_id = ?`
 	if _, err := s.db.ExecContext(ctx, query, string(pending), formatTime(time.Now().UTC()), chatID); err != nil {
@@ -181,7 +184,7 @@ func (s *Store) SetPending(ctx context.Context, chatID int64, pending domain.Pen
 	return nil
 }
 
-// Count возвращает число подписчиков.
+// Count returns the number of subscribers.
 func (s *Store) Count(ctx context.Context) (int, error) {
 	var count int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM subscribers`).Scan(&count); err != nil {
@@ -190,7 +193,7 @@ func (s *Store) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-const columns = `chat_id, place_name, latitude, longitude, tz_name, report_time,
+const columns = `chat_id, lang, place_name, latitude, longitude, tz_name, report_time,
 	active_hours, wind_unit, paused, last_sent, pending, created_at, updated_at`
 
 type scanner interface {
@@ -211,6 +214,7 @@ func scanSubscriber(row scanner) (domain.Subscriber, error) {
 
 	err := row.Scan(
 		&subscriber.ChatID,
+		&subscriber.Lang,
 		&subscriber.Place.Name,
 		&subscriber.Place.Latitude,
 		&subscriber.Place.Longitude,
@@ -229,13 +233,13 @@ func scanSubscriber(row scanner) (domain.Subscriber, error) {
 	}
 
 	if subscriber.ReportTime, err = domain.ParseDayTime(reportTime); err != nil {
-		return domain.Subscriber{}, fmt.Errorf("время рассылки %q: %w", reportTime, err)
+		return domain.Subscriber{}, fmt.Errorf("report time %q: %w", reportTime, err)
 	}
 	if subscriber.ActiveHours, err = domain.ParseHourWindow(activeHours); err != nil {
-		return domain.Subscriber{}, fmt.Errorf("активное окно %q: %w", activeHours, err)
+		return domain.Subscriber{}, fmt.Errorf("active window %q: %w", activeHours, err)
 	}
 	if subscriber.WindUnit, err = domain.ParseWindUnit(windUnit); err != nil {
-		return domain.Subscriber{}, fmt.Errorf("единица ветра %q: %w", windUnit, err)
+		return domain.Subscriber{}, fmt.Errorf("wind unit %q: %w", windUnit, err)
 	}
 	subscriber.Paused = paused != 0
 	subscriber.Pending = domain.PendingAction(pending)
