@@ -94,9 +94,9 @@ func (s *Subscriptions) Count(ctx context.Context) (int, error) {
 	return s.store.Count(ctx)
 }
 
-// SearchCities looks up places by name.
-func (s *Subscriptions) SearchCities(ctx context.Context, query string) ([]port.Place, error) {
-	return s.geocoder.Search(ctx, query, CityChoices)
+// SearchCities looks up places by name, spelled in the given language.
+func (s *Subscriptions) SearchCities(ctx context.Context, query, language string) ([]port.Place, error) {
+	return s.geocoder.Search(ctx, query, CityChoices, language)
 }
 
 // SetPlace stores a place found by the geocoder.
@@ -162,7 +162,7 @@ func (s *Subscriptions) SetActiveHours(ctx context.Context, chatID int64, raw st
 // SetLang stores the interface language.
 func (s *Subscriptions) SetLang(ctx context.Context, chatID int64, lang i18n.Lang) (domain.Subscriber, error) {
 	if !i18n.Valid(lang) {
-		return domain.Subscriber{}, fmt.Errorf("usecase: язык %q не поддерживается", lang)
+		return domain.Subscriber{}, fmt.Errorf("usecase: language %q is not supported", lang)
 	}
 	return s.update(ctx, chatID, func(subscriber *domain.Subscriber) error {
 		subscriber.Lang = string(lang)

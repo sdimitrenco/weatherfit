@@ -285,7 +285,7 @@ func hourlyLinesOf(message string) []string {
 
 func TestReportHasAttribution(t *testing.T) {
 	message := Report(sunnyDay(t), Options{Printer: i18n.For(i18n.Russian)})
-	if !strings.Contains(message, Attribution) {
+	if !strings.Contains(message, i18n.For(i18n.Russian).T(i18n.KeyAttribution)) {
 		t.Error("в сообщении нет атрибуции Open-Meteo")
 	}
 }
@@ -357,7 +357,7 @@ func TestCurrent(t *testing.T) {
 	}
 
 	message := Current(domain.Location{Name: "Дрезден"}, current, Options{Printer: i18n.For(i18n.Russian)})
-	for _, want := range []string{"Сейчас в Дрезден", "пасмурно", "16°", "ощущается 15°", "Влажность 68%", "10:15", Attribution} {
+	for _, want := range []string{"Сейчас в Дрезден", "пасмурно", "16°", "ощущается 15°", "Влажность 68%", "10:15", i18n.For(i18n.Russian).T(i18n.KeyAttribution)} {
 		if !strings.Contains(message, want) {
 			t.Errorf("в сообщении нет %q:\n%s", want, message)
 		}
@@ -424,7 +424,7 @@ func TestReportRendersEveryLanguage(t *testing.T) {
 		if strings.Contains(message, "headline.") || strings.Contains(message, "advice.") {
 			t.Errorf("%q: в сообщении остался непереведённый ключ:\n%s", lang, message)
 		}
-		if !strings.Contains(message, Attribution) {
+		if !strings.Contains(message, i18n.For(i18n.Russian).T(i18n.KeyAttribution)) {
 			t.Errorf("%q: нет атрибуции", lang)
 		}
 	}

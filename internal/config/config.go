@@ -42,7 +42,7 @@ type Config struct {
 }
 
 const (
-	defaultLocationName = "Дрезден"
+	defaultLocationName = "Dresden"
 	defaultLatitude     = 51.05
 	defaultLongitude    = 13.74
 	defaultTZName       = "Europe/Berlin"
@@ -69,7 +69,7 @@ func Load(getenv Getenv) (*Config, error) {
 	}
 
 	if cfg.TelegramBotToken == "" {
-		fail("TELEGRAM_BOT_TOKEN: обязательная переменная не задана")
+		fail("TELEGRAM_BOT_TOKEN: required variable is not set")
 	}
 
 	var err error
@@ -95,7 +95,7 @@ func Load(getenv Getenv) (*Config, error) {
 
 	cfg.DefaultTimezone, err = time.LoadLocation(cfg.DefaultTZName)
 	if err != nil {
-		fail("TZ_NAME: неизвестная таймзона %q", cfg.DefaultTZName)
+		fail("TZ_NAME: unknown timezone %q", cfg.DefaultTZName)
 	}
 
 	cfg.DefaultReportTime, err = domain.ParseDayTime(valueOr(getenv("REPORT_TIME"), defaultReportTime))
@@ -116,7 +116,7 @@ func Load(getenv Getenv) (*Config, error) {
 	cfg.DefaultLang = i18n.Parse(getenv("DEFAULT_LANG"))
 	cfg.HourlyLayout = strings.ToLower(valueOr(getenv("HOURLY_LAYOUT"), defaultHourlyLayout))
 	if cfg.HourlyLayout != "lines" && cfg.HourlyLayout != "table" {
-		fail("HOURLY_LAYOUT: %q не поддерживается, ожидается lines или table", cfg.HourlyLayout)
+		fail("HOURLY_LAYOUT: %q is not supported, want lines or table", cfg.HourlyLayout)
 	}
 
 	cfg.LogLevel, err = parseLogLevel(valueOr(getenv("LOG_LEVEL"), defaultLogLevel))
@@ -196,7 +196,7 @@ func parseChatIDs(raw string) ([]int64, error) {
 		}
 		id, err := strconv.ParseInt(part, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("%q не похоже на chat_id, ожидается целое число", part)
+			return nil, fmt.Errorf("%q does not look like a chat_id, want an integer", part)
 		}
 		if _, duplicate := seen[id]; duplicate {
 			continue
@@ -214,10 +214,10 @@ func parseCoordinate(raw string, fallback, limit float64) (float64, error) {
 	}
 	value, err := strconv.ParseFloat(raw, 64)
 	if err != nil {
-		return 0, fmt.Errorf("%q не похоже на число", raw)
+		return 0, fmt.Errorf("%q does not look like a number", raw)
 	}
 	if value < -limit || value > limit {
-		return 0, fmt.Errorf("значение %v вне диапазона [-%v, %v]", value, limit, limit)
+		return 0, fmt.Errorf("value %v is outside the range [-%v, %v]", value, limit, limit)
 	}
 	return value, nil
 }
@@ -233,6 +233,6 @@ func parseLogLevel(raw string) (slog.Level, error) {
 	case "error":
 		return slog.LevelError, nil
 	default:
-		return 0, fmt.Errorf("%q не поддерживается, ожидается debug, info, warn или error", raw)
+		return 0, fmt.Errorf("%q is not supported, want debug, info, warn or error", raw)
 	}
 }

@@ -24,14 +24,14 @@ const (
 	DefaultTimeout = 10 * time.Second
 	// DefaultUserAgent is sent with every request.
 	DefaultUserAgent = "weatherfit-bot/1.0 (personal telegram weather bot)"
-	// DefaultLanguage is the language of place names in the response.
-	DefaultLanguage = "ru"
+	// DefaultLanguage is used when the caller passes no language.
+	DefaultLanguage = "en"
 
 	maxBodyBytes = 1 << 20
 )
 
 // ErrNothingFound is returned when the query matches no place.
-var ErrNothingFound = errors.New("geocode: ничего не найдено")
+var ErrNothingFound = errors.New("geocode: nothing found")
 
 // Options configures the client.
 type Options struct {
@@ -71,6 +71,14 @@ func New(options Options) *Client {
 	}
 }
 
+func (c *Client) languageOr(language string) string {
+	language = strings.ToLower(strings.TrimSpace(language))
+	if language == "" {
+		return c.language
+	}
+	return language
+}
+
 type searchResponse struct {
 	Results []struct {
 		Name      string  `json:"name"`
@@ -83,11 +91,12 @@ type searchResponse struct {
 	Reason string `json:"reason"`
 }
 
-// Search looks up places by name, returning at most limit matches.
-func (c *Client) Search(ctx context.Context, query string, limit int) ([]port.Place, error) {
+// Search looks up places by name, returning at most limit matches. Place
+// names come back spelled in the requested language.
+func (c *Client) Search(ctx context.Context, query string, limit int, language string) ([]port.Place, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
-		return nil, errors.New("geocode: пустой запрос")
+		return nil, errors.New("geocode: empty query")
 	}
 	if limit < 1 {
 		limit = 1
@@ -99,7 +108,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int) ([]port.Pl
 	values := url.Values{}
 	values.Set("name", query)
 	values.Set("count", strconv.Itoa(limit))
-	values.Set("language", c.language)
+	values.Set("language", c.languageOr(language))
 	values.Set("format", "json")
 
 	parsed, err := c.get(ctx, values)
@@ -160,14 +169,14 @@ func contains(parts []string, value string) bool {
 func (c *Client) get(ctx context.Context, values url.Values) (searchResponse, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+values.Encode(), nil)
 	if err != nil {
-		return searchResponse{}, fmt.Errorf("geocode: не удалось собрать запрос: %w", err)
+		return searchResponse{}, fmt.Errorf("geocode: cannot build the request: %w", err)
 	}
 	request.Header.Set("User-Agent", c.userAgent)
 	request.Header.Set("Accept", "application/json")
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		return searchResponse{}, fmt.Errorf("geocode: запрос не удался: %w", err)
+		return searchResponse{}, fmt.Errorf("geocode: request failed: %w", err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, response.Body)
@@ -176,18 +185,18 @@ func (c *Client) get(ctx context.Context, values url.Values) (searchResponse, er
 
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxBodyBytes))
 	if err != nil {
-		return searchResponse{}, fmt.Errorf("geocode: не удалось прочитать ответ: %w", err)
+		return searchResponse{}, fmt.Errorf("geocode: cannot read the response: %w", err)
 	}
 
 	var parsed searchResponse
 	if response.StatusCode != http.StatusOK {
 		if err := json.Unmarshal(body, &parsed); err == nil && parsed.Reason != "" {
-			return searchResponse{}, fmt.Errorf("geocode: API ответил %d: %s", response.StatusCode, parsed.Reason)
+			return searchResponse{}, fmt.Errorf("geocode: API returned %d: %s", response.StatusCode, parsed.Reason)
 		}
-		return searchResponse{}, fmt.Errorf("geocode: API ответил %d", response.StatusCode)
+		return searchResponse{}, fmt.Errorf("geocode: API returned %d", response.StatusCode)
 	}
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return searchResponse{}, fmt.Errorf("geocode: не удалось разобрать ответ: %w", err)
+		return searchResponse{}, fmt.Errorf("geocode: cannot parse the response: %w", err)
 	}
 	return parsed, nil
 }

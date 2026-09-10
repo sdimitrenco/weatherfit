@@ -235,12 +235,15 @@ func TestSearchCitiesPassesQuery(t *testing.T) {
 	geocoder := &stubGeocoder{places: []port.Place{{Name: "Дрезден"}}}
 	subscriptions := newSubscriptions(t, newMemoryStore(), geocoder, nil, time.Now())
 
-	places, err := subscriptions.SearchCities(context.Background(), "Дрезден")
+	places, err := subscriptions.SearchCities(context.Background(), "Dresden", "de")
 	if err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
-	if geocoder.query != "Дрезден" || len(places) != 1 {
-		t.Errorf("запрос = %q, найдено = %d", geocoder.query, len(places))
+	if geocoder.query != "Dresden" || len(places) != 1 {
+		t.Errorf("query = %q, found = %d", geocoder.query, len(places))
+	}
+	if geocoder.language != "de" {
+		t.Errorf("language = %q, want de", geocoder.language)
 	}
 }
 

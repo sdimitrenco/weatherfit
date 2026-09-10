@@ -77,11 +77,11 @@ func (s *Scheduler) tick(ctx context.Context) {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			return
 		}
-		s.log.Error("проверка рассылки не удалась", slog.String("error", err.Error()))
+		s.log.Error("the delivery check failed", slog.String("error", err.Error()))
 		return
 	}
 	if sent > 0 {
-		s.log.Info("утренние отчёты отправлены", slog.Int("count", sent))
+		s.log.Info("morning reports sent", slog.Int("count", sent))
 	}
 }
 

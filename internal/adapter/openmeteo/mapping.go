@@ -12,14 +12,14 @@ import (
 func toDomain(parsed response, request port.ForecastRequest) (domain.Forecast, error) {
 	timezone := request.Timezone
 	if len(parsed.Hourly.Time) == 0 {
-		return domain.Forecast{}, errors.New("openmeteo: в ответе нет почасовых данных")
+		return domain.Forecast{}, errors.New("openmeteo: the response carries no hourly data")
 	}
 
 	hours := make([]domain.HourPoint, 0, len(parsed.Hourly.Time))
 	for i, raw := range parsed.Hourly.Time {
 		moment, err := time.ParseInLocation(localTimeForm, raw, timezone)
 		if err != nil {
-			return domain.Forecast{}, fmt.Errorf("openmeteo: не удалось разобрать время %q: %w", raw, err)
+			return domain.Forecast{}, fmt.Errorf("openmeteo: cannot parse the time %q: %w", raw, err)
 		}
 		hours = append(hours, domain.HourPoint{
 			Time:                     moment,
@@ -43,7 +43,7 @@ func toDomain(parsed response, request port.ForecastRequest) (domain.Forecast, e
 	for i, raw := range parsed.Daily.Time {
 		date, err := time.ParseInLocation(time.DateOnly, raw, timezone)
 		if err != nil {
-			return domain.Forecast{}, fmt.Errorf("openmeteo: не удалось разобрать дату %q: %w", raw, err)
+			return domain.Forecast{}, fmt.Errorf("openmeteo: cannot parse the date %q: %w", raw, err)
 		}
 		days = append(days, domain.DaySummary{
 			Date:                        date,

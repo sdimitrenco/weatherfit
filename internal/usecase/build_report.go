@@ -56,12 +56,12 @@ func (b *BuildReport) Build(ctx context.Context, subscriber domain.Subscriber, k
 	day, _ := forecast.Day(date)
 	hours := activeHours(forecast, subscriber, date, kind, now)
 	if len(hours) == 0 {
-		return domain.Report{}, fmt.Errorf("usecase: в прогнозе нет часов для %s", date.Format(time.DateOnly))
+		return domain.Report{}, fmt.Errorf("usecase: the forecast has no hours for %s", date.Format(time.DateOnly))
 	}
 
 	report := domain.Analyze(subscriber.Place, date, day, hours)
 	if len(report.UnknownCodes) > 0 {
-		b.log.Warn("неизвестные коды погоды WMO",
+		b.log.Warn("unknown WMO weather codes",
 			slog.Int64("chat_id", subscriber.ChatID),
 			slog.Any("codes", report.UnknownCodes),
 		)
@@ -78,7 +78,7 @@ func (b *BuildReport) Current(ctx context.Context, subscriber domain.Subscriber)
 
 	current, ok := forecast.Current.Get()
 	if !ok {
-		return domain.CurrentPoint{}, errors.New("usecase: в ответе нет текущей погоды")
+		return domain.CurrentPoint{}, errors.New("usecase: the response carries no current weather")
 	}
 	return current, nil
 }

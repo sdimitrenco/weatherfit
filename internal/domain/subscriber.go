@@ -45,16 +45,16 @@ func (s Subscriber) Timezone() *time.Location {
 // Validate checks the subscriber settings.
 func (s Subscriber) Validate() error {
 	if s.ChatID == 0 {
-		return fmt.Errorf("chat_id не задан")
+		return fmt.Errorf("chat_id is not set")
 	}
 	if err := s.Place.Validate(); err != nil {
 		return err
 	}
 	if _, err := time.LoadLocation(s.TZName); err != nil {
-		return fmt.Errorf("неизвестная таймзона %q", s.TZName)
+		return fmt.Errorf("unknown timezone %q", s.TZName)
 	}
 	if s.ActiveHours.Start > s.ActiveHours.End {
-		return fmt.Errorf("активное окно %s перевёрнуто", s.ActiveHours)
+		return fmt.Errorf("active window %s is inverted", s.ActiveHours)
 	}
 	if _, err := ParseWindUnit(string(s.WindUnit)); err != nil {
 		return err

@@ -92,7 +92,7 @@ docker compose up -d --build
 docker compose logs -f
 ```
 
-В логе должна появиться строка `бот запущен`. Дальше напиши боту `/start`.
+В логе должна появиться строка `bot started`. Дальше напиши боту `/start`.
 
 ## 6. Секреты GitHub Actions
 
@@ -129,7 +129,7 @@ ssh -i ~/.ssh/weatherfit-deploy SERVER_USER@SERVER_IP "cd ~/weatherfit && git st
 - **Deploy** (`.github/workflows/deploy.yml`) ждёт успешного CI, заходит на
   сервер по SSH, делает `git reset --hard origin/main`, пересобирает и
   перезапускает контейнер, чистит старые образы. Затем проверяет, что
-  контейнер в состоянии `running` и в логе есть `бот запущен`, иначе падает.
+  контейнер в состоянии `running` и в логе есть `bot started`, иначе падает.
 
 Deploy срабатывает только для коммитов, начинающихся с `feat:` или `fix:`,
 на ветке `main`. Коммит `chore:` или `docs:` сервер не трогает. Есть кнопка
@@ -178,7 +178,7 @@ docker compose start
 |---|---|
 | Бот молчит | `docker compose logs --tail=50`, `unauthorized` означает неверный токен |
 | «Это приватный бот» | твой chat_id не в `TELEGRAM_ALLOWED_CHAT_IDS` |
-| Нет утренней рассылки | в логе `утренние отчёты отправлены`; проверь в `/settings`, не на паузе ли |
+| Нет утренней рассылки | в логе `morning reports sent`; проверь в `/settings`, не на паузе ли |
 | «Не удалось получить прогноз» | Open-Meteo недоступен; бот сам ретраит 5 раз за ~15 минут |
 | Контейнер перезапускается | `docker inspect -f '{{.RestartCount}}' weatherbot`, потом логи: обычно битый токен или недоступный том |
 | Deploy пропущен | коммит не начинается с `feat:`/`fix:`, либо CI упал; есть кнопка **Run workflow** |

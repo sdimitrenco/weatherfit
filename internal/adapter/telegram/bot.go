@@ -56,7 +56,7 @@ type Bot struct {
 // New creates the bot and registers the update handler.
 func New(options Options) (*Bot, error) {
 	if options.Token == "" {
-		return nil, errors.New("telegram: не задан токен")
+		return nil, errors.New("telegram: token is not set")
 	}
 
 	served := &Bot{
@@ -71,13 +71,13 @@ func New(options Options) (*Bot, error) {
 	botOptions := append([]bot.Option{
 		bot.WithDefaultHandler(served.handle),
 		bot.WithErrorsHandler(func(err error) {
-			served.log.Error("ошибка Telegram", slog.String("error", err.Error()))
+			served.log.Error("Telegram error", slog.String("error", err.Error()))
 		}),
 	}, options.BotOptions...)
 
 	api, err := bot.New(options.Token, botOptions...)
 	if err != nil {
-		return nil, fmt.Errorf("telegram: не удалось создать бота: %w", err)
+		return nil, fmt.Errorf("telegram: cannot create the bot: %w", err)
 	}
 	served.api = api
 	return served, nil
@@ -139,7 +139,7 @@ func (b *Bot) registerCommands(ctx context.Context) {
 	}
 
 	if _, err := b.api.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: commands}); err != nil {
-		b.log.Warn("не удалось зарегистрировать команды", slog.String("error", err.Error()))
+		b.log.Warn("cannot register the bot commands", slog.String("error", err.Error()))
 	}
 }
 
@@ -156,7 +156,7 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 	chatID := message.Chat.ID
 
 	if !b.access.Allows(chatID) {
-		b.log.Info("сообщение от неизвестного chat_id",
+		b.log.Info("message from an unknown chat_id",
 			slog.Int64("chat_id", chatID),
 			slog.String("text", message.Text),
 		)
@@ -171,7 +171,7 @@ func (b *Bot) handleMessage(ctx context.Context, message *models.Message) {
 
 	subscriber, err := b.subscriptions.Ensure(ctx, chatID, languageCode)
 	if err != nil {
-		b.fail(ctx, chatID, "не удалось создать подписчика", err)
+		b.fail(ctx, chatID, "cannot create the subscriber", err)
 		return
 	}
 
@@ -266,7 +266,7 @@ func (b *Bot) handleButton(ctx context.Context, subscriber domain.Subscriber, ke
 		b.sendSettings(ctx, subscriber)
 	case i18n.KeyButtonBack:
 		if err := b.subscriptions.SetPending(ctx, subscriber.ChatID, domain.PendingNone); err != nil {
-			b.log.Warn("не удалось сбросить ожидание ввода", slog.String("error", err.Error()))
+			b.log.Warn("cannot clear the pending input", slog.String("error", err.Error()))
 		}
 		b.sendSettings(ctx, subscriber)
 	}
@@ -294,7 +294,7 @@ func (b *Bot) handleCallback(ctx context.Context, query *models.CallbackQuery) {
 
 	subscriber, err := b.subscriptions.Get(ctx, chatID)
 	if err != nil {
-		b.fail(ctx, chatID, "не удалось прочитать подписчика", err)
+		b.fail(ctx, chatID, "cannot read the subscriber", err)
 		return
 	}
 
@@ -325,7 +325,7 @@ func (b *Bot) handleCallback(ctx context.Context, query *models.CallbackQuery) {
 
 func (b *Bot) answerCallback(ctx context.Context, id string) {
 	if _, err := b.api.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{CallbackQueryID: id}); err != nil {
-		b.log.Debug("не удалось подтвердить callback", slog.String("error", err.Error()))
+		b.log.Debug("cannot acknowledge the callback", slog.String("error", err.Error()))
 	}
 }
 
@@ -358,11 +358,11 @@ func (b *Bot) reply(ctx context.Context, chatID int64, text string, markup model
 	}
 	if blocked(err) {
 		if deleteErr := b.subscriptions.Unsubscribe(ctx, chatID); deleteErr != nil {
-			b.log.Error("не удалось удалить заблокировавшего подписчика", slog.String("error", deleteErr.Error()))
+			b.log.Error("cannot delete the subscriber who blocked the bot", slog.String("error", deleteErr.Error()))
 		}
 		return
 	}
-	b.log.Error("не удалось отправить сообщение",
+	b.log.Error("cannot send the message",
 		slog.Int64("chat_id", chatID),
 		slog.String("error", err.Error()),
 	)
@@ -386,7 +386,7 @@ func (b *Bot) sendStart(ctx context.Context, subscriber domain.Subscriber) {
 func (b *Bot) sendReport(ctx context.Context, subscriber domain.Subscriber, kind usecase.ReportKind) {
 	report, err := b.reports.Build(ctx, subscriber, kind)
 	if err != nil {
-		b.log.Warn("не удалось собрать отчёт",
+		b.log.Warn("cannot build the report",
 			slog.Int64("chat_id", subscriber.ChatID),
 			slog.String("error", err.Error()),
 		)
@@ -399,7 +399,7 @@ func (b *Bot) sendReport(ctx context.Context, subscriber domain.Subscriber, kind
 func (b *Bot) sendCurrent(ctx context.Context, subscriber domain.Subscriber) {
 	current, err := b.reports.Current(ctx, subscriber)
 	if err != nil {
-		b.log.Warn("не удалось получить текущую погоду",
+		b.log.Warn("cannot fetch the current weather",
 			slog.Int64("chat_id", subscriber.ChatID),
 			slog.String("error", err.Error()),
 		)
@@ -434,7 +434,7 @@ func (b *Bot) sendSettings(ctx context.Context, subscriber domain.Subscriber) {
 
 func (b *Bot) askCity(ctx context.Context, subscriber domain.Subscriber) {
 	if err := b.subscriptions.SetPending(ctx, subscriber.ChatID, domain.PendingCity); err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось сохранить ожидание города", err)
+		b.fail(ctx, subscriber.ChatID, "cannot store the pending city input", err)
 		return
 	}
 	b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyAskCity), locationKeyboard(b.printer(subscriber)))
@@ -442,7 +442,7 @@ func (b *Bot) askCity(ctx context.Context, subscriber domain.Subscriber) {
 
 func (b *Bot) askTime(ctx context.Context, subscriber domain.Subscriber) {
 	if err := b.subscriptions.SetPending(ctx, subscriber.ChatID, domain.PendingTime); err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось сохранить ожидание времени", err)
+		b.fail(ctx, subscriber.ChatID, "cannot store the pending time input", err)
 		return
 	}
 	b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyAskTime), nil)
@@ -450,7 +450,7 @@ func (b *Bot) askTime(ctx context.Context, subscriber domain.Subscriber) {
 
 func (b *Bot) askHours(ctx context.Context, subscriber domain.Subscriber) {
 	if err := b.subscriptions.SetPending(ctx, subscriber.ChatID, domain.PendingHours); err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось сохранить ожидание активных часов", err)
+		b.fail(ctx, subscriber.ChatID, "cannot store the pending active hours input", err)
 		return
 	}
 	b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyAskHours), nil)
@@ -468,13 +468,13 @@ func (b *Bot) applyHours(ctx context.Context, subscriber domain.Subscriber, raw 
 }
 
 func (b *Bot) searchCity(ctx context.Context, subscriber domain.Subscriber, query string) {
-	places, err := b.subscriptions.SearchCities(ctx, query)
+	places, err := b.subscriptions.SearchCities(ctx, query, subscriber.Lang)
 	if err != nil {
 		if errors.Is(err, geocode.ErrNothingFound) {
 			b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyCityNotFound), nil)
 			return
 		}
-		b.log.Warn("поиск города не удался",
+		b.log.Warn("the city search failed",
 			slog.Int64("chat_id", subscriber.ChatID),
 			slog.String("query", query),
 			slog.String("error", err.Error()),
@@ -514,7 +514,7 @@ func (b *Bot) applyCityChoice(ctx context.Context, subscriber domain.Subscriber,
 func (b *Bot) applyPlace(ctx context.Context, subscriber domain.Subscriber, place port.Place) {
 	updated, err := b.subscriptions.SetPlace(ctx, subscriber.ChatID, place)
 	if err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось сохранить город", err)
+		b.fail(ctx, subscriber.ChatID, "cannot save the city", err)
 		return
 	}
 	b.forgetChoices(subscriber.ChatID)
@@ -530,7 +530,7 @@ func (b *Bot) applyLocation(ctx context.Context, subscriber domain.Subscriber, l
 		Longitude: location.Longitude,
 	})
 	if err != nil {
-		b.log.Warn("не удалось применить геопозицию",
+		b.log.Warn("cannot apply the shared location",
 			slog.Int64("chat_id", subscriber.ChatID),
 			slog.String("error", err.Error()),
 		)
@@ -557,7 +557,7 @@ func (b *Bot) applyTime(ctx context.Context, subscriber domain.Subscriber, raw s
 func (b *Bot) toggleUnit(ctx context.Context, subscriber domain.Subscriber) {
 	updated, err := b.subscriptions.ToggleWindUnit(ctx, subscriber.ChatID)
 	if err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось переключить единицу ветра", err)
+		b.fail(ctx, subscriber.ChatID, "cannot toggle the wind unit", err)
 		return
 	}
 	printer := b.printer(updated)
@@ -567,7 +567,7 @@ func (b *Bot) toggleUnit(ctx context.Context, subscriber domain.Subscriber) {
 func (b *Bot) applyLang(ctx context.Context, subscriber domain.Subscriber, lang i18n.Lang) {
 	updated, err := b.subscriptions.SetLang(ctx, subscriber.ChatID, lang)
 	if err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось сменить язык", err)
+		b.fail(ctx, subscriber.ChatID, "cannot change the language", err)
 		return
 	}
 	b.reply(ctx, updated.ChatID,
@@ -578,7 +578,7 @@ func (b *Bot) applyLang(ctx context.Context, subscriber domain.Subscriber, lang 
 func (b *Bot) setPaused(ctx context.Context, subscriber domain.Subscriber, paused bool) {
 	updated, err := b.subscriptions.SetPaused(ctx, subscriber.ChatID, paused)
 	if err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось изменить состояние рассылки", err)
+		b.fail(ctx, subscriber.ChatID, "cannot change the delivery state", err)
 		return
 	}
 
@@ -591,10 +591,10 @@ func (b *Bot) setPaused(ctx context.Context, subscriber domain.Subscriber, pause
 
 func (b *Bot) unsubscribe(ctx context.Context, subscriber domain.Subscriber) {
 	if err := b.subscriptions.Unsubscribe(ctx, subscriber.ChatID); err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось отписать", err)
+		b.fail(ctx, subscriber.ChatID, "cannot unsubscribe", err)
 		return
 	}
-	b.log.Info("подписчик отписался", slog.Int64("chat_id", subscriber.ChatID))
+	b.log.Info("subscriber unsubscribed", slog.Int64("chat_id", subscriber.ChatID))
 	b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyStopped), nil)
 }
 
@@ -606,7 +606,7 @@ func (b *Bot) sendStats(ctx context.Context, subscriber domain.Subscriber) {
 
 	count, err := b.subscriptions.Count(ctx)
 	if err != nil {
-		b.fail(ctx, subscriber.ChatID, "не удалось посчитать подписчиков", err)
+		b.fail(ctx, subscriber.ChatID, "cannot count subscribers", err)
 		return
 	}
 	b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyStats, count), nil)

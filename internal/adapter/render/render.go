@@ -26,13 +26,11 @@ func ParseLayout(raw string) (Layout, error) {
 	case LayoutTable:
 		return LayoutTable, nil
 	default:
-		return "", fmt.Errorf("%q не поддерживается, ожидается lines или table", raw)
+		return "", fmt.Errorf("%q is not supported, want lines or table", raw)
 	}
 }
 
 const (
-	// Attribution is required by the CC BY 4.0 license of the data.
-	Attribution = "Данные: Open-Meteo.com"
 	// MessageLimit is the Telegram message length limit.
 	MessageLimit = 4096
 
@@ -88,7 +86,7 @@ func Report(report domain.Report, options Options) string {
 	message.WriteString("\n👕 <b>" + escape(printer.T(i18n.KeyOutfitHeader)) + "</b>\n")
 	message.WriteString(escape(printer.AdviceText(report.Advice, options.unit())) + "\n")
 
-	message.WriteString("\n<i>" + Attribution + "</i>")
+	message.WriteString(attribution(printer))
 
 	return trimToLimit(message.String())
 }
@@ -122,9 +120,14 @@ func Current(place domain.Location, current domain.CurrentPoint, options Options
 	}
 
 	message.WriteString("\n🕒 " + escape(printer.T(i18n.KeyMeasuredAt, current.Time.Format("15:04"))) + "\n")
-	message.WriteString("\n<i>" + Attribution + "</i>")
+	message.WriteString(attribution(printer))
 
 	return trimToLimit(message.String())
+}
+
+// attribution is required by the CC BY 4.0 license of the Open-Meteo data.
+func attribution(printer *i18n.Printer) string {
+	return "\n<i>" + escape(printer.T(i18n.KeyAttribution)) + "</i>"
 }
 
 func headerLine(report domain.Report, options Options) string {

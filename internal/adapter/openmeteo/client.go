@@ -111,10 +111,10 @@ func New(options Options) *Client {
 // Forecast requests request.Days calendar days starting today.
 func (c *Client) Forecast(ctx context.Context, request port.ForecastRequest) (domain.Forecast, error) {
 	if request.Days < 1 || request.Days > 16 {
-		return domain.Forecast{}, fmt.Errorf("openmeteo: forecast_days=%d вне диапазона [1, 16]", request.Days)
+		return domain.Forecast{}, fmt.Errorf("openmeteo: forecast_days=%d is outside the range [1, 16]", request.Days)
 	}
 	if request.Timezone == nil {
-		return domain.Forecast{}, errors.New("openmeteo: не задана таймзона запроса")
+		return domain.Forecast{}, errors.New("openmeteo: request timezone is not set")
 	}
 	if err := request.Place.Validate(); err != nil {
 		return domain.Forecast{}, fmt.Errorf("openmeteo: %w", err)
@@ -127,7 +127,7 @@ func (c *Client) Forecast(ctx context.Context, request port.ForecastRequest) (do
 
 	httpResponse, err := c.httpClient.Do(httpRequest)
 	if err != nil {
-		return domain.Forecast{}, fmt.Errorf("openmeteo: запрос не удался: %w", err)
+		return domain.Forecast{}, fmt.Errorf("openmeteo: request failed: %w", err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, httpResponse.Body)
@@ -136,7 +136,7 @@ func (c *Client) Forecast(ctx context.Context, request port.ForecastRequest) (do
 
 	body, err := io.ReadAll(io.LimitReader(httpResponse.Body, maxBodyBytes))
 	if err != nil {
-		return domain.Forecast{}, fmt.Errorf("openmeteo: не удалось прочитать ответ: %w", err)
+		return domain.Forecast{}, fmt.Errorf("openmeteo: cannot read the response: %w", err)
 	}
 
 	if httpResponse.StatusCode != http.StatusOK {
@@ -145,7 +145,7 @@ func (c *Client) Forecast(ctx context.Context, request port.ForecastRequest) (do
 
 	var parsed response
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return domain.Forecast{}, fmt.Errorf("openmeteo: не удалось разобрать ответ: %w", err)
+		return domain.Forecast{}, fmt.Errorf("openmeteo: cannot parse the response: %w", err)
 	}
 
 	return toDomain(parsed, request)
@@ -164,7 +164,7 @@ func (c *Client) newRequest(ctx context.Context, request port.ForecastRequest) (
 
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+query.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("openmeteo: не удалось собрать запрос: %w", err)
+		return nil, fmt.Errorf("openmeteo: cannot build the request: %w", err)
 	}
 	httpRequest.Header.Set("User-Agent", c.userAgent)
 	httpRequest.Header.Set("Accept", "application/json")
@@ -174,9 +174,9 @@ func (c *Client) newRequest(ctx context.Context, request port.ForecastRequest) (
 func statusError(status int, body []byte) error {
 	var apiError errorResponse
 	if err := json.Unmarshal(body, &apiError); err == nil && apiError.Reason != "" {
-		return fmt.Errorf("API ответил %d: %s", status, apiError.Reason)
+		return fmt.Errorf("API returned %d: %s", status, apiError.Reason)
 	}
-	return fmt.Errorf("API ответил %d", status)
+	return fmt.Errorf("API returned %d", status)
 }
 
 // ResolveTimezone resolves a timezone name from coordinates via timezone=auto.
@@ -194,14 +194,14 @@ func (c *Client) ResolveTimezone(ctx context.Context, place domain.Location) (st
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+query.Encode(), nil)
 	if err != nil {
-		return "", fmt.Errorf("openmeteo: не удалось собрать запрос: %w", err)
+		return "", fmt.Errorf("openmeteo: cannot build the request: %w", err)
 	}
 	request.Header.Set("User-Agent", c.userAgent)
 	request.Header.Set("Accept", "application/json")
 
 	httpResponse, err := c.httpClient.Do(request)
 	if err != nil {
-		return "", fmt.Errorf("openmeteo: запрос не удался: %w", err)
+		return "", fmt.Errorf("openmeteo: request failed: %w", err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, httpResponse.Body)
@@ -210,7 +210,7 @@ func (c *Client) ResolveTimezone(ctx context.Context, place domain.Location) (st
 
 	body, err := io.ReadAll(io.LimitReader(httpResponse.Body, maxBodyBytes))
 	if err != nil {
-		return "", fmt.Errorf("openmeteo: не удалось прочитать ответ: %w", err)
+		return "", fmt.Errorf("openmeteo: cannot read the response: %w", err)
 	}
 	if httpResponse.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("openmeteo: %w", statusError(httpResponse.StatusCode, body))
@@ -218,13 +218,13 @@ func (c *Client) ResolveTimezone(ctx context.Context, place domain.Location) (st
 
 	var parsed response
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return "", fmt.Errorf("openmeteo: не удалось разобрать ответ: %w", err)
+		return "", fmt.Errorf("openmeteo: cannot parse the response: %w", err)
 	}
 	if parsed.Timezone == "" {
-		return "", errors.New("openmeteo: в ответе нет таймзоны")
+		return "", errors.New("openmeteo: the response carries no timezone")
 	}
 	if _, err := time.LoadLocation(parsed.Timezone); err != nil {
-		return "", fmt.Errorf("openmeteo: неизвестная таймзона %q", parsed.Timezone)
+		return "", fmt.Errorf("openmeteo: unknown timezone %q", parsed.Timezone)
 	}
 	return parsed.Timezone, nil
 }

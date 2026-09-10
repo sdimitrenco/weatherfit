@@ -44,6 +44,7 @@ const (
 	KeyUnitKMH Key = "unit.kmh"
 	KeyUnitMM  Key = "unit.mm"
 
+	KeyAttribution    Key = "report.attribution"
 	KeyHourlyHeader   Key = "report.hourly_header"
 	KeyOutfitHeader   Key = "report.outfit_header"
 	KeyWindLabel      Key = "report.wind"

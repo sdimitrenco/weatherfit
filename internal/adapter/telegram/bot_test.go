@@ -220,13 +220,15 @@ func (s *stubForecasts) Forecast(_ context.Context, _ port.ForecastRequest) (dom
 }
 
 type stubGeocoder struct {
-	places []port.Place
-	err    error
-	query  string
+	places   []port.Place
+	err      error
+	query    string
+	language string
 }
 
-func (s *stubGeocoder) Search(_ context.Context, query string, _ int) ([]port.Place, error) {
+func (s *stubGeocoder) Search(_ context.Context, query string, _ int, language string) ([]port.Place, error) {
 	s.query = query
+	s.language = language
 	return s.places, s.err
 }
 

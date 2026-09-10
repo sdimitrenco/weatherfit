@@ -37,7 +37,7 @@ func sleepContext(ctx context.Context, delay time.Duration) error {
 }
 
 // ErrBlocked marks a recipient that can no longer receive messages.
-var ErrBlocked = errors.New("получатель заблокировал бота")
+var ErrBlocked = errors.New("the recipient blocked the bot")
 
 // SendReports delivers the morning report to every subscriber that is due.
 type SendReports struct {
@@ -98,7 +98,7 @@ func (s *SendReports) SendDue(ctx context.Context) (int, error) {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return sent, err
 			}
-			s.log.Error("утренняя рассылка не удалась",
+			s.log.Error("morning delivery failed",
 				slog.Int64("chat_id", subscriber.ChatID),
 				slog.String("error", err.Error()),
 			)
@@ -115,7 +115,7 @@ func (s *SendReports) sendOne(ctx context.Context, subscriber domain.Subscriber)
 		if notifyErr := s.notifier.Send(ctx, subscriber.ChatID,
 			s.renderer.Text(subscriber, string(i18n.KeyMorningFailed))); notifyErr != nil {
 			s.dropIfBlocked(ctx, subscriber, notifyErr)
-			return fmt.Errorf("прогноз не получен (%w), сообщение об ошибке тоже не ушло: %w", err, notifyErr)
+			return fmt.Errorf("no forecast (%w) and the failure notice did not go out either: %w", err, notifyErr)
 		}
 		return err
 	}
@@ -130,7 +130,7 @@ func (s *SendReports) sendOne(ctx context.Context, subscriber domain.Subscriber)
 		return err
 	}
 
-	s.log.Info("утренний отчёт отправлен",
+	s.log.Info("morning report sent",
 		slog.Int64("chat_id", subscriber.ChatID),
 		slog.String("place", subscriber.Place.Name),
 		slog.String("date", date),
@@ -156,7 +156,7 @@ func (s *SendReports) buildWithRetries(ctx context.Context, subscriber domain.Su
 			break
 		}
 
-		s.log.Warn("прогноз не получен, повторю попытку",
+		s.log.Warn("no forecast, retrying",
 			slog.Int64("chat_id", subscriber.ChatID),
 			slog.Int("attempt", attempt),
 			slog.Duration("delay", delay),
@@ -167,7 +167,7 @@ func (s *SendReports) buildWithRetries(ctx context.Context, subscriber domain.Su
 		}
 		delay *= 2
 	}
-	return domain.Report{}, fmt.Errorf("прогноз не получен за %d попыток: %w", s.retry.Attempts, lastErr)
+	return domain.Report{}, fmt.Errorf("no forecast after %d attempts: %w", s.retry.Attempts, lastErr)
 }
 
 func (s *SendReports) dropIfBlocked(ctx context.Context, subscriber domain.Subscriber, err error) {
@@ -175,11 +175,11 @@ func (s *SendReports) dropIfBlocked(ctx context.Context, subscriber domain.Subsc
 		return
 	}
 	if deleteErr := s.store.Delete(ctx, subscriber.ChatID); deleteErr != nil {
-		s.log.Error("не удалось удалить заблокировавшего подписчика",
+		s.log.Error("cannot delete the subscriber who blocked the bot",
 			slog.Int64("chat_id", subscriber.ChatID),
 			slog.String("error", deleteErr.Error()),
 		)
 		return
 	}
-	s.log.Info("подписчик удалён: бот заблокирован", slog.Int64("chat_id", subscriber.ChatID))
+	s.log.Info("subscriber removed: the bot is blocked", slog.Int64("chat_id", subscriber.ChatID))
 }

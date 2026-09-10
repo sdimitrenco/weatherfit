@@ -41,6 +41,7 @@ var catalogEN = map[Key]string{
 	KeyUnitKMH: "km/h",
 	KeyUnitMM:  "mm",
 
+	KeyAttribution:    "Data: Open-Meteo.com",
 	KeyHourlyHeader:   "Hour by hour",
 	KeyOutfitHeader:   "What to wear",
 	KeyWindLabel:      "Wind",

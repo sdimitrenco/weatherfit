@@ -44,24 +44,24 @@ type Store struct {
 func Open(ctx context.Context, path string) (*Store, error) {
 	if directory := filepath.Dir(path); directory != "" && directory != "." {
 		if err := os.MkdirAll(directory, 0o755); err != nil {
-			return nil, fmt.Errorf("sqlite: не удалось создать каталог %q: %w", directory, err)
+			return nil, fmt.Errorf("sqlite: cannot create the directory %q: %w", directory, err)
 		}
 	}
 
 	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("sqlite: не удалось открыть базу: %w", err)
+		return nil, fmt.Errorf("sqlite: cannot open the database: %w", err)
 	}
 	db.SetMaxOpenConns(1)
 
 	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("sqlite: база недоступна: %w", err)
+		return nil, fmt.Errorf("sqlite: the database is unreachable: %w", err)
 	}
 	if _, err := db.ExecContext(ctx, schema); err != nil {
 		_ = db.Close()
-		return nil, fmt.Errorf("sqlite: не удалось создать схему: %w", err)
+		return nil, fmt.Errorf("sqlite: cannot create the schema: %w", err)
 	}
 
 	return &Store{db: db}, nil
@@ -75,7 +75,7 @@ func (s *Store) Close() error {
 // Save inserts or replaces a subscriber.
 func (s *Store) Save(ctx context.Context, subscriber domain.Subscriber) error {
 	if err := subscriber.Validate(); err != nil {
-		return fmt.Errorf("sqlite: подписчик невалиден: %w", err)
+		return fmt.Errorf("sqlite: invalid subscriber: %w", err)
 	}
 
 	const query = `
@@ -114,7 +114,7 @@ ON CONFLICT(chat_id) DO UPDATE SET
 		formatTime(subscriber.UpdatedAt),
 	)
 	if err != nil {
-		return fmt.Errorf("sqlite: не удалось сохранить подписчика %d: %w", subscriber.ChatID, err)
+		return fmt.Errorf("sqlite: cannot save subscriber %d: %w", subscriber.ChatID, err)
 	}
 	return nil
 }
@@ -129,7 +129,7 @@ func (s *Store) Get(ctx context.Context, chatID int64) (domain.Subscriber, error
 		return domain.Subscriber{}, fmt.Errorf("sqlite: %w: chat_id %d", port.ErrSubscriberNotFound, chatID)
 	}
 	if err != nil {
-		return domain.Subscriber{}, fmt.Errorf("sqlite: не удалось прочитать подписчика %d: %w", chatID, err)
+		return domain.Subscriber{}, fmt.Errorf("sqlite: cannot read subscriber %d: %w", chatID, err)
 	}
 	return subscriber, nil
 }
@@ -140,7 +140,7 @@ func (s *Store) All(ctx context.Context) ([]domain.Subscriber, error) {
 
 	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("sqlite: не удалось прочитать подписчиков: %w", err)
+		return nil, fmt.Errorf("sqlite: cannot read subscribers: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -148,12 +148,12 @@ func (s *Store) All(ctx context.Context) ([]domain.Subscriber, error) {
 	for rows.Next() {
 		subscriber, err := scanSubscriber(rows)
 		if err != nil {
-			return nil, fmt.Errorf("sqlite: не удалось разобрать строку: %w", err)
+			return nil, fmt.Errorf("sqlite: cannot scan a row: %w", err)
 		}
 		subscribers = append(subscribers, subscriber)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("sqlite: обход подписчиков прерван: %w", err)
+		return nil, fmt.Errorf("sqlite: iterating subscribers failed: %w", err)
 	}
 	return subscribers, nil
 }
@@ -161,7 +161,7 @@ func (s *Store) All(ctx context.Context) ([]domain.Subscriber, error) {
 // Delete removes a subscriber.
 func (s *Store) Delete(ctx context.Context, chatID int64) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM subscribers WHERE chat_id = ?`, chatID); err != nil {
-		return fmt.Errorf("sqlite: не удалось удалить подписчика %d: %w", chatID, err)
+		return fmt.Errorf("sqlite: cannot delete subscriber %d: %w", chatID, err)
 	}
 	return nil
 }
@@ -170,7 +170,7 @@ func (s *Store) Delete(ctx context.Context, chatID int64) error {
 func (s *Store) MarkSent(ctx context.Context, chatID int64, date string) error {
 	const query = `UPDATE subscribers SET last_sent = ?, updated_at = ? WHERE chat_id = ?`
 	if _, err := s.db.ExecContext(ctx, query, date, formatTime(time.Now().UTC()), chatID); err != nil {
-		return fmt.Errorf("sqlite: не удалось отметить рассылку для %d: %w", chatID, err)
+		return fmt.Errorf("sqlite: cannot mark delivery for %d: %w", chatID, err)
 	}
 	return nil
 }
@@ -179,7 +179,7 @@ func (s *Store) MarkSent(ctx context.Context, chatID int64, date string) error {
 func (s *Store) SetPending(ctx context.Context, chatID int64, pending domain.PendingAction) error {
 	const query = `UPDATE subscribers SET pending = ?, updated_at = ? WHERE chat_id = ?`
 	if _, err := s.db.ExecContext(ctx, query, string(pending), formatTime(time.Now().UTC()), chatID); err != nil {
-		return fmt.Errorf("sqlite: не удалось сохранить ожидаемый ввод для %d: %w", chatID, err)
+		return fmt.Errorf("sqlite: cannot save the pending input for %d: %w", chatID, err)
 	}
 	return nil
 }
@@ -188,7 +188,7 @@ func (s *Store) SetPending(ctx context.Context, chatID int64, pending domain.Pen
 func (s *Store) Count(ctx context.Context) (int, error) {
 	var count int
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM subscribers`).Scan(&count); err != nil {
-		return 0, fmt.Errorf("sqlite: не удалось посчитать подписчиков: %w", err)
+		return 0, fmt.Errorf("sqlite: cannot count subscribers: %w", err)
 	}
 	return count, nil
 }

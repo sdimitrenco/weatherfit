@@ -41,6 +41,7 @@ var catalogRU = map[Key]string{
 	KeyUnitKMH: "км/ч",
 	KeyUnitMM:  "мм",
 
+	KeyAttribution:    "Данные: Open-Meteo.com",
 	KeyHourlyHeader:   "По часам",
 	KeyOutfitHeader:   "Как одеться",
 	KeyWindLabel:      "Ветер",

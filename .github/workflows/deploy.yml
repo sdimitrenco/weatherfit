@@ -63,4 +63,4 @@ jobs:
             restarts="$(docker inspect -f '{{.RestartCount}}' weatherbot)"
             echo "status=$status restarts=$restarts"
             test "$status" = "running"
-            docker compose logs --tail=200 weatherbot | grep -q 'бот запущен'
+            docker compose logs --tail=200 weatherbot | grep -q 'bot started'

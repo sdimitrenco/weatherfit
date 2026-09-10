@@ -32,7 +32,7 @@ func main() {
 func run() error {
 	cfg, err := config.Load(os.Getenv)
 	if err != nil {
-		return fmt.Errorf("не удалось прочитать конфигурацию:\n%w", err)
+		return fmt.Errorf("cannot read configuration:\n%w", err)
 	}
 
 	log := newLogger(cfg.LogLevel)
@@ -47,7 +47,7 @@ func run() error {
 	}
 	defer func() {
 		if err := store.Close(); err != nil {
-			log.Error("не удалось закрыть базу", slog.String("error", err.Error()))
+			log.Error("cannot close the database", slog.String("error", err.Error()))
 		}
 	}()
 
@@ -94,7 +94,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Info("бот запущен",
+	log.Info("bot started",
 		slog.String("default_place", cfg.DefaultPlace.Name),
 		slog.String("default_tz", cfg.DefaultTZName),
 		slog.String("default_report_time", cfg.DefaultReportTime.String()),
@@ -118,7 +118,7 @@ func run() error {
 	}()
 
 	<-ctx.Done()
-	log.Info("получен сигнал остановки, завершаю работу")
+	log.Info("shutdown signal received, stopping")
 	wait.Wait()
 
 	if schedulerErr != nil && !errors.Is(schedulerErr, context.Canceled) {

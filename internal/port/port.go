@@ -33,7 +33,7 @@ type SubscriberStore interface {
 }
 
 // ErrSubscriberNotFound is returned when the store holds no such subscriber.
-var ErrSubscriberNotFound = errors.New("подписчик не найден")
+var ErrSubscriberNotFound = errors.New("subscriber not found")
 
 // Place is a populated place returned by the geocoder.
 type Place struct {
@@ -44,9 +44,11 @@ type Place struct {
 	Place   domain.Location
 }
 
-// Geocoder searches places by name.
+// Geocoder searches places by name. The language selects how place names are
+// spelled in the results, so a subscriber sees their own city in their own
+// interface language.
 type Geocoder interface {
-	Search(ctx context.Context, query string, limit int) ([]Place, error)
+	Search(ctx context.Context, query string, limit int, language string) ([]Place, error)
 }
 
 // TimezoneResolver resolves a timezone from coordinates, which is what a

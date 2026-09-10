@@ -38,7 +38,7 @@ func TestSearch(t *testing.T) {
 	server, seen := serve(t, http.StatusOK, dresdenResponse)
 	client := New(Options{BaseURL: server.URL})
 
-	places, err := client.Search(context.Background(), " Дрезден ", 5)
+	places, err := client.Search(context.Background(), " Дрезден ", 5, "ru")
 	if err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestSearchLimits(t *testing.T) {
 	client := New(Options{BaseURL: server.URL})
 
 	for _, limit := range []int{0, -5, 100} {
-		if _, err := client.Search(context.Background(), "Дрезден", limit); err != nil {
+		if _, err := client.Search(context.Background(), "Дрезден", limit, "ru"); err != nil {
 			t.Fatalf("неожиданная ошибка: %v", err)
 		}
 	}
@@ -85,7 +85,7 @@ func TestSearchNothingFound(t *testing.T) {
 	server, _ := serve(t, http.StatusOK, `{"generationtime_ms":0.1}`)
 	client := New(Options{BaseURL: server.URL})
 
-	_, err := client.Search(context.Background(), "Атлантида", 5)
+	_, err := client.Search(context.Background(), "Атлантида", 5, "ru")
 	if !errors.Is(err, ErrNothingFound) {
 		t.Errorf("ошибка = %v, ожидалась ErrNothingFound", err)
 	}
@@ -99,7 +99,7 @@ func TestSearchSkipsResultsWithUnknownTimezone(t *testing.T) {
 	server, _ := serve(t, http.StatusOK, body)
 	client := New(Options{BaseURL: server.URL})
 
-	places, err := client.Search(context.Background(), "город", 5)
+	places, err := client.Search(context.Background(), "город", 5, "ru")
 	if err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestSearchSkipsResultsWithUnknownTimezone(t *testing.T) {
 
 func TestSearchEmptyQuery(t *testing.T) {
 	client := New(Options{BaseURL: "http://example.invalid"})
-	if _, err := client.Search(context.Background(), "   ", 5); err == nil {
+	if _, err := client.Search(context.Background(), "   ", 5, "ru"); err == nil {
 		t.Error("ожидалась ошибка для пустого запроса")
 	}
 }
@@ -119,7 +119,7 @@ func TestSearchAPIError(t *testing.T) {
 	server, _ := serve(t, http.StatusBadRequest, `{"error":true,"reason":"Parameter name is required"}`)
 	client := New(Options{BaseURL: server.URL})
 
-	_, err := client.Search(context.Background(), "Дрезден", 5)
+	_, err := client.Search(context.Background(), "Дрезден", 5, "ru")
 	if err == nil {
 		t.Fatal("ожидалась ошибка, её нет")
 	}
@@ -131,7 +131,7 @@ func TestSearchAPIError(t *testing.T) {
 func TestSearchBrokenJSON(t *testing.T) {
 	server, _ := serve(t, http.StatusOK, `{"results":`)
 	client := New(Options{BaseURL: server.URL})
-	if _, err := client.Search(context.Background(), "Дрезден", 5); err == nil {
+	if _, err := client.Search(context.Background(), "Дрезден", 5, "ru"); err == nil {
 		t.Error("ожидалась ошибка разбора")
 	}
 }
@@ -146,7 +146,7 @@ func TestSearchRespectsContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if _, err := client.Search(ctx, "Дрезден", 5); err == nil {
+	if _, err := client.Search(ctx, "Дрезден", 5, "ru"); err == nil {
 		t.Error("ожидалась ошибка отменённого контекста")
 	}
 }
