@@ -161,6 +161,17 @@ go test ./internal/adapter/render/ -run Golden -update
 Тесты не ходят в сеть: ответы Open-Meteo лежат в `testdata`, Telegram API
 подменяется `httptest`-заглушкой, время подменяется через интерфейс `Clock`.
 
+## CI и деплой
+
+`.github/workflows/ci.yml` на каждый push в `main` и на каждый pull request
+гоняет `gofmt`, `go build`, `go vet`, тесты с детектором гонок,
+`golangci-lint` и сборку docker-образа.
+
+`.github/workflows/deploy.yml` после успешного CI заходит на сервер по SSH,
+приводит рабочую копию к `origin/main`, пересобирает контейнер и проверяет,
+что бот действительно поднялся. Срабатывает только на коммитах `feat:` и
+`fix:`. Нужные секреты и порядок настройки: [DEPLOY.md](DEPLOY.md).
+
 ## Данные
 
 Прогноз и геокодинг: [Open-Meteo](https://open-meteo.com), лицензия CC BY 4.0.

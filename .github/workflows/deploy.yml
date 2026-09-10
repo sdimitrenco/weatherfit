@@ -1,0 +1,66 @@
+name: Deploy
+
+# Runs only after CI finishes successfully on main, and only when the
+# triggering commit is a "feat:"/"fix:" change — never deploys code that has
+# not passed build/vet/tests, never deploys a PR branch, and never restarts
+# the bot for a docs/chore/refactor-only commit.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  # Also available as a manual button, for redeploying without a new commit.
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       (startsWith(github.event.workflow_run.head_commit.message, 'feat:') ||
+        startsWith(github.event.workflow_run.head_commit.message, 'fix:')))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            # fetch + reset --hard rather than "git pull": a pull silently
+            # no-ops (exit 0) if the server's checkout has diverged from
+            # origin/main, and the build below would then "succeed" while
+            # redeploying stale code. set -e stops the deploy outright if
+            # any step fails instead of leaving the bot half-updated.
+            set -e
+            cd ~/weatherfit
+            git fetch origin main
+            git reset --hard origin/main
+            # No prod overlay and no reverse proxy: the bot uses long polling,
+            # publishes no ports and shares nothing with the other apps on
+            # this box. docker-compose.yml is already production-shaped
+            # (restart: unless-stopped, named volume for the database).
+            docker compose up --build -d
+            docker image prune -f
+
+      - name: Verify the bot is polling
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/weatherfit
+            # A bad token or unreadable database makes the container exit and
+            # restart in a loop, which "up -d" alone reports as success. Wait
+            # out the first start, then require the process to still be up and
+            # to have logged its startup line.
+            sleep 15
+            docker compose ps
+            status="$(docker inspect -f '{{.State.Status}}' weatherbot)"
+            restarts="$(docker inspect -f '{{.RestartCount}}' weatherbot)"
+            echo "status=$status restarts=$restarts"
+            test "$status" = "running"
+            docker compose logs --tail=200 weatherbot | grep -q 'бот запущен'

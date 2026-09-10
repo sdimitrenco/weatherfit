@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Formatting
+        run: |
+          unformatted="$(gofmt -l ./cmd ./internal)"
+          if [ -n "$unformatted" ]; then
+            echo "these files need gofmt (run 'make fmt'):"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # -race here rather than only in `make test`: the bot runs the Telegram
+      # poller and the delivery scheduler in parallel goroutines, and a data
+      # race between them is exactly the bug that would not show up locally
+      # on a machine without a C compiler.
+      - name: Tests
+        run: go test -race -count=1 ./...
+
+      # Same pinned golangci-lint version the Makefile installs, so a lint
+      # failure here reproduces locally with `make lint`.
+      - name: Lint
+        run: make lint
+
+  # Building the image in CI catches a broken Dockerfile before a deploy
+  # tries it on the server, where a failure means the bot stays down instead
+  # of a red check. Build only — nothing is pushed to a registry; the server
+  # builds its own image from source (see DEPLOY.md).
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t weatherbot:ci .
+
+      # The container must fail loudly on a missing token instead of idling
+      # in a broken state, and this also proves the distroless binary runs
+      # at all — there is no shell in the image to check that by hand.
+      - name: Image refuses to start without a token
+        run: |
+          if docker run --rm weatherbot:ci; then
+            echo "container started without TELEGRAM_BOT_TOKEN, expected exit 1"
+            exit 1
+          fi
