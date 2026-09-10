@@ -60,6 +60,13 @@ type Notifier interface {
 	Send(ctx context.Context, chatID int64, text string) error
 }
 
+// ReportRenderer turns domain data into a message in the subscriber language.
+type ReportRenderer interface {
+	Report(report domain.Report, subscriber domain.Subscriber) string
+	Current(place domain.Location, current domain.CurrentPoint, subscriber domain.Subscriber) string
+	Text(subscriber domain.Subscriber, key string, args ...any) string
+}
+
 // Clock reports the current time so that "now" can be faked in tests.
 type Clock interface {
 	Now() time.Time
