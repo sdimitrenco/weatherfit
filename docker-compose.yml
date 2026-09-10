@@ -1,0 +1,19 @@
+services:
+  weatherbot:
+    build: .
+    image: weatherbot:local
+    container_name: weatherbot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: /data/weatherfit.db
+    volumes:
+      - weatherfit-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  weatherfit-data:
