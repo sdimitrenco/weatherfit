@@ -42,13 +42,13 @@ func TestSendDueSendsOnlyDueSubscribers(t *testing.T) {
 
 	sent, err := sender.SendDue(context.Background())
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if sent != 1 {
-		t.Errorf("отправлено = %d, ожидалось 1", sent)
+		t.Errorf("отправлено = %d, want 1", sent)
 	}
 	if len(notifier.chatIDs) != 1 || notifier.chatIDs[0] != 42 {
-		t.Errorf("получатели = %v, ожидался только 42", notifier.chatIDs)
+		t.Errorf("получатели = %v, want только 42", notifier.chatIDs)
 	}
 	if !strings.Contains(notifier.sent[0], "отчёт для 42") {
 		t.Errorf("текст сообщения = %q", notifier.sent[0])
@@ -65,12 +65,12 @@ func TestSendDueMarksDeliveryDate(t *testing.T) {
 		&stubNotifier{}, clock, Retry{Attempts: 1, Base: time.Minute, Sleep: sleep}, quietLogger())
 
 	if _, err := sender.SendDue(context.Background()); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	subscriber, err := store.Get(context.Background(), 42)
 	if err != nil {
-		t.Fatalf("не удалось прочитать подписчика: %v", err)
+		t.Fatalf("cannot read the subscriber: %v", err)
 	}
 	if subscriber.LastSentDate != "2026-09-10" {
 		t.Errorf("дата рассылки = %q", subscriber.LastSentDate)
@@ -78,10 +78,10 @@ func TestSendDueMarksDeliveryDate(t *testing.T) {
 
 	sent, err := sender.SendDue(context.Background())
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if sent != 0 {
-		t.Errorf("повторная рассылка = %d, ожидалось 0", sent)
+		t.Errorf("повторная рассылка = %d, want 0", sent)
 	}
 }
 
@@ -97,22 +97,22 @@ func TestSendDueRetriesWithExponentialBackoff(t *testing.T) {
 
 	sent, err := sender.SendDue(context.Background())
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if sent != 1 {
-		t.Errorf("отправлено = %d, ожидалось 1 после ретраев", sent)
+		t.Errorf("отправлено = %d, want 1 после ретраев", sent)
 	}
 	if provider.calls != 4 {
-		t.Errorf("запросов к API = %d, ожидалось 4", provider.calls)
+		t.Errorf("запросов к API = %d, want 4", provider.calls)
 	}
 
 	want := []time.Duration{time.Minute, 2 * time.Minute, 4 * time.Minute}
 	if len(*delays) != len(want) {
-		t.Fatalf("задержки = %v, ожидалось %v", *delays, want)
+		t.Fatalf("задержки = %v, want %v", *delays, want)
 	}
 	for i, delay := range want {
 		if (*delays)[i] != delay {
-			t.Errorf("задержка %d = %v, ожидалось %v", i, (*delays)[i], delay)
+			t.Errorf("задержка %d = %v, want %v", i, (*delays)[i], delay)
 		}
 	}
 }
@@ -129,16 +129,16 @@ func TestSendDueGivesUpAndWarnsUser(t *testing.T) {
 
 	sent, err := sender.SendDue(context.Background())
 	if err != nil {
-		t.Fatalf("рассылка не должна возвращать ошибку: %v", err)
+		t.Fatalf("delivery must not return an error: %v", err)
 	}
 	if sent != 0 {
-		t.Errorf("отправлено = %d, ожидалось 0", sent)
+		t.Errorf("отправлено = %d, want 0", sent)
 	}
 	if provider.calls != 5 {
-		t.Errorf("попыток = %d, ожидалось 5", provider.calls)
+		t.Errorf("попыток = %d, want 5", provider.calls)
 	}
 	if len(*delays) != 4 {
-		t.Errorf("задержек = %d, ожидалось 4", len(*delays))
+		t.Errorf("задержек = %d, want 4", len(*delays))
 	}
 	if len(notifier.sent) != 1 || notifier.sent[0] != string(i18n.KeyMorningFailed) {
 		t.Errorf("пользователю не пришло сообщение об ошибке: %v", notifier.sent)
@@ -161,7 +161,7 @@ func TestSendDueDeletesBlockedSubscriber(t *testing.T) {
 		notifier, clock, Retry{Attempts: 1, Base: time.Minute, Sleep: sleep}, quietLogger())
 
 	if _, err := sender.SendDue(context.Background()); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if count, _ := store.Count(context.Background()); count != 0 {
 		t.Errorf("подписчиков = %d, заблокировавший должен быть удалён", count)
@@ -181,7 +181,7 @@ func TestSendDueStopsOnCancelledContext(t *testing.T) {
 	cancel()
 
 	if _, err := sender.SendDue(ctx); !errors.Is(err, context.Canceled) {
-		t.Errorf("ошибка = %v, ожидалась отмена контекста", err)
+		t.Errorf("ошибка = %v, expected a cancelled context", err)
 	}
 }
 
@@ -198,7 +198,7 @@ func TestSendDueUsesSubscriberTimezoneForDate(t *testing.T) {
 		&stubNotifier{}, clock, Retry{Attempts: 1, Base: time.Minute, Sleep: sleep}, quietLogger())
 
 	if _, err := sender.SendDue(context.Background()); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	stored, _ := store.Get(context.Background(), 42)
@@ -216,6 +216,6 @@ func TestDefaultRetrySpansAboutFifteenMinutes(t *testing.T) {
 		delay *= 2
 	}
 	if total < 14*time.Minute || total > 16*time.Minute {
-		t.Errorf("суммарная задержка = %v, ожидалось около 15 минут", total)
+		t.Errorf("суммарная задержка = %v, want около 15 минут", total)
 	}
 }

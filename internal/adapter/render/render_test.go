@@ -12,7 +12,7 @@ import (
 	"github.com/sdimitrenco/weatherfit/internal/i18n"
 )
 
-var update = flag.Bool("update", false, "перезаписать golden-файлы")
+var update = flag.Bool("update", false, "rewrite the golden files")
 
 const goldenDir = "../../../testdata/golden"
 
@@ -20,7 +20,7 @@ func berlin(t *testing.T) *time.Location {
 	t.Helper()
 	location, err := time.LoadLocation("Europe/Berlin")
 	if err != nil {
-		t.Fatalf("не удалось загрузить таймзону: %v", err)
+		t.Fatalf("cannot load the timezone: %v", err)
 	}
 	return location
 }
@@ -196,20 +196,20 @@ func goldenCompare(t *testing.T, name, got string) {
 
 	if *update {
 		if err := os.MkdirAll(goldenDir, 0o755); err != nil {
-			t.Fatalf("не удалось создать каталог golden: %v", err)
+			t.Fatalf("cannot create the golden directory: %v", err)
 		}
 		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
-			t.Fatalf("не удалось записать golden-файл: %v", err)
+			t.Fatalf("cannot write the golden file: %v", err)
 		}
 		return
 	}
 
 	want, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("не удалось прочитать golden-файл %s: %v (запусти go test -run Golden -update)", name, err)
+		t.Fatalf("cannot read the golden file %s: %v (run go test -run Golden -update)", name, err)
 	}
 	if got != string(want) {
-		t.Errorf("рендер отличается от %s\n--- получено ---\n%s\n--- ожидалось ---\n%s", name, got, want)
+		t.Errorf("рендер отличается от %s\n--- получено ---\n%s\n--- want ---\n%s", name, got, want)
 	}
 }
 
@@ -332,12 +332,12 @@ func TestReportShowsMissingValuesAsDash(t *testing.T) {
 func TestReportWindUnits(t *testing.T) {
 	metric := Report(rainyWindyDay(t), Options{Printer: i18n.For(i18n.Russian), WindUnit: domain.WindUnitMS})
 	if !strings.Contains(metric, "до 9 м/с") {
-		t.Errorf("ожидалась скорость в м/с:\n%s", strings.SplitN(metric, "\n\n", 3)[1])
+		t.Errorf("want скорость в м/с:\n%s", strings.SplitN(metric, "\n\n", 3)[1])
 	}
 
 	imperialish := Report(rainyWindyDay(t), Options{Printer: i18n.For(i18n.Russian), WindUnit: domain.WindUnitKMH})
 	if !strings.Contains(imperialish, "до 33 км/ч") {
-		t.Errorf("ожидалась скорость в км/ч:\n%s", strings.SplitN(imperialish, "\n\n", 3)[1])
+		t.Errorf("want скорость в км/ч:\n%s", strings.SplitN(imperialish, "\n\n", 3)[1])
 	}
 }
 
@@ -403,7 +403,7 @@ func TestParseLayout(t *testing.T) {
 		}
 	}
 	if _, err := ParseLayout("json"); err == nil {
-		t.Error("ожидалась ошибка для неизвестного варианта")
+		t.Error("expected an error для неизвестного варианта")
 	}
 }
 
@@ -411,7 +411,7 @@ func TestTrimToLimit(t *testing.T) {
 	long := strings.Repeat("я", MessageLimit+100)
 	trimmed := trimToLimit(long)
 	if length := len([]rune(trimmed)); length != MessageLimit {
-		t.Errorf("длина после обрезки = %d, ожидалось %d", length, MessageLimit)
+		t.Errorf("длина после обрезки = %d, want %d", length, MessageLimit)
 	}
 	if !strings.HasSuffix(trimmed, "…") {
 		t.Error("обрезанное сообщение должно заканчиваться многоточием")
@@ -433,6 +433,6 @@ func TestReportRendersEveryLanguage(t *testing.T) {
 func TestReportFallsBackToDefaultPrinter(t *testing.T) {
 	message := Report(sunnyDay(t), Options{})
 	if !strings.Contains(message, "What to wear") {
-		t.Errorf("без принтера ожидался английский:\n%s", message)
+		t.Errorf("без принтера want английский:\n%s", message)
 	}
 }

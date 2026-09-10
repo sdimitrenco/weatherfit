@@ -59,7 +59,7 @@ func TestBuildOutfitAdviceBands(t *testing.T) {
 			t.Fatalf("для %v° нет базового совета: %v", tc.apparent, kinds(advice))
 		}
 		if base.Band != tc.want {
-			t.Errorf("для %v° комплект = %q, ожидалось %q", tc.apparent, base.Band, tc.want)
+			t.Errorf("для %v° комплект = %q, want %q", tc.apparent, base.Band, tc.want)
 		}
 		if temperature, has := base.TemperatureC.Get(); !has || temperature != tc.apparent {
 			t.Errorf("для %v° температура в совете = %v", tc.apparent, temperature)
@@ -77,10 +77,10 @@ func TestBuildOutfitAdviceLimitsItems(t *testing.T) {
 	})
 
 	if len(advice.Items) < 2 || len(advice.Items) > maxAdviceItems {
-		t.Errorf("советов = %d, ожидалось от 2 до %d: %v", len(advice.Items), maxAdviceItems, kinds(advice))
+		t.Errorf("советов = %d, want от 2 до %d: %v", len(advice.Items), maxAdviceItems, kinds(advice))
 	}
 	if advice.Items[0].Kind != AdviceBase {
-		t.Errorf("первым идёт %q, ожидался базовый совет", advice.Items[0].Kind)
+		t.Errorf("первым идёт %q, want базовый совет", advice.Items[0].Kind)
 	}
 	if !hasKind(advice, AdviceRainCoat) {
 		t.Errorf("нет совета про дождевик: %v", kinds(advice))
@@ -100,11 +100,11 @@ func TestBuildOutfitAdviceKeepsOrder(t *testing.T) {
 	got := kinds(advice)
 	want := []AdviceKind{AdviceBase, AdviceLayeringWithOuter, AdviceRainMaybe}
 	if len(got) != len(want) {
-		t.Fatalf("советы = %v, ожидалось %v", got, want)
+		t.Fatalf("советы = %v, want %v", got, want)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Errorf("совет %d = %q, ожидался %q", i, got[i], want[i])
+			t.Errorf("совет %d = %q, want %q", i, got[i], want[i])
 		}
 	}
 }
@@ -116,12 +116,12 @@ func TestBuildOutfitAdviceLayering(t *testing.T) {
 		t.Fatalf("при разнице 8° нужен совет про слои: %v", kinds(withOuter))
 	}
 	if maximum, has := item.TemperatureC.Get(); !has || maximum != 20 {
-		t.Errorf("в совете про слои максимум = %v, ожидалось 20", maximum)
+		t.Errorf("в совете про слои максимум = %v, want 20", maximum)
 	}
 
 	noOuter := BuildOutfitAdvice(OutfitInput{ApparentMinC: Some(25.0), ApparentMaxC: Some(34.0)})
 	if !hasKind(noOuter, AdviceLayering) {
-		t.Errorf("для летнего комплекта ожидался совет без верхнего слоя: %v", kinds(noOuter))
+		t.Errorf("для летнего комплекта want совет без верхнего слоя: %v", kinds(noOuter))
 	}
 
 	tooFlat := BuildOutfitAdvice(OutfitInput{ApparentMinC: Some(12.0), ApparentMaxC: Some(19.9)})
@@ -254,7 +254,7 @@ func TestBuildOutfitAdviceWind(t *testing.T) {
 		t.Fatalf("порывы должны попасть в совет: %v", kinds(gusty))
 	}
 	if speed, has := item.SpeedMS.Get(); !has || speed != 16 {
-		t.Errorf("скорость порывов в совете = %v, ожидалось 16", speed)
+		t.Errorf("скорость порывов в совете = %v, want 16", speed)
 	}
 	if item.WindLevel != WindModerate {
 		t.Errorf("уровень ветра в совете = %v", item.WindLevel)
@@ -272,6 +272,6 @@ func TestBuildOutfitAdviceWind(t *testing.T) {
 func TestBuildOutfitAdviceWithoutTemperature(t *testing.T) {
 	advice := BuildOutfitAdvice(OutfitInput{})
 	if !hasKind(advice, AdviceBaseNoTemperature) {
-		t.Errorf("без температуры ожидался честный совет: %v", kinds(advice))
+		t.Errorf("без температуры want честный совет: %v", kinds(advice))
 	}
 }

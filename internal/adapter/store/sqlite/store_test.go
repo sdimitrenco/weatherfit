@@ -16,11 +16,11 @@ func newStore(t *testing.T) (*Store, context.Context) {
 	ctx := context.Background()
 	store, err := Open(ctx, filepath.Join(t.TempDir(), "nested", "weatherfit.db"))
 	if err != nil {
-		t.Fatalf("не удалось открыть базу: %v", err)
+		t.Fatalf("cannot open the database: %v", err)
 	}
 	t.Cleanup(func() {
 		if err := store.Close(); err != nil {
-			t.Errorf("не удалось закрыть базу: %v", err)
+			t.Errorf("cannot close the database: %v", err)
 		}
 	})
 	return store, ctx
@@ -45,12 +45,12 @@ func TestSaveAndGet(t *testing.T) {
 	want := sample(42)
 
 	if err := store.Save(ctx, want); err != nil {
-		t.Fatalf("не удалось сохранить: %v", err)
+		t.Fatalf("cannot save: %v", err)
 	}
 
 	got, err := store.Get(ctx, 42)
 	if err != nil {
-		t.Fatalf("не удалось прочитать: %v", err)
+		t.Fatalf("cannot read: %v", err)
 	}
 	if got.ChatID != want.ChatID || got.Place != want.Place || got.TZName != want.TZName {
 		t.Errorf("подписчик прочитан иначе: %+v", got)
@@ -62,7 +62,7 @@ func TestSaveAndGet(t *testing.T) {
 		t.Errorf("значения по умолчанию неверны: %+v", got)
 	}
 	if !got.CreatedAt.Equal(want.CreatedAt) {
-		t.Errorf("created_at = %v, ожидалось %v", got.CreatedAt, want.CreatedAt)
+		t.Errorf("created_at = %v, want %v", got.CreatedAt, want.CreatedAt)
 	}
 }
 
@@ -70,7 +70,7 @@ func TestGetMissingSubscriber(t *testing.T) {
 	store, ctx := newStore(t)
 	_, err := store.Get(ctx, 777)
 	if !errors.Is(err, port.ErrSubscriberNotFound) {
-		t.Errorf("ошибка = %v, ожидалась ErrSubscriberNotFound", err)
+		t.Errorf("ошибка = %v, expected ErrSubscriberNotFound", err)
 	}
 }
 
@@ -78,7 +78,7 @@ func TestSaveUpdatesExisting(t *testing.T) {
 	store, ctx := newStore(t)
 	original := sample(42)
 	if err := store.Save(ctx, original); err != nil {
-		t.Fatalf("не удалось сохранить: %v", err)
+		t.Fatalf("cannot save: %v", err)
 	}
 
 	changed := original
@@ -90,12 +90,12 @@ func TestSaveUpdatesExisting(t *testing.T) {
 	changed.UpdatedAt = original.UpdatedAt.Add(time.Hour)
 
 	if err := store.Save(ctx, changed); err != nil {
-		t.Fatalf("не удалось обновить: %v", err)
+		t.Fatalf("cannot update: %v", err)
 	}
 
 	got, err := store.Get(ctx, 42)
 	if err != nil {
-		t.Fatalf("не удалось прочитать: %v", err)
+		t.Fatalf("cannot read: %v", err)
 	}
 	if got.Place.Name != "Прага" || got.TZName != "Europe/Prague" {
 		t.Errorf("город не обновился: %+v", got.Place)
@@ -107,7 +107,7 @@ func TestSaveUpdatesExisting(t *testing.T) {
 		t.Errorf("created_at изменился: %v", got.CreatedAt)
 	}
 	if count, err := store.Count(ctx); err != nil || count != 1 {
-		t.Errorf("подписчиков = %d, %v, ожидался один", count, err)
+		t.Errorf("подписчиков = %d, %v, want один", count, err)
 	}
 }
 
@@ -116,10 +116,10 @@ func TestSaveRejectsInvalid(t *testing.T) {
 	broken := sample(42)
 	broken.TZName = "Mars/Olympus"
 	if err := store.Save(ctx, broken); err == nil {
-		t.Error("ожидалась ошибка валидации")
+		t.Error("expected an error валидации")
 	}
 	if count, _ := store.Count(ctx); count != 0 {
-		t.Errorf("подписчиков = %d, ожидался ноль", count)
+		t.Errorf("подписчиков = %d, want ноль", count)
 	}
 }
 
@@ -127,26 +127,26 @@ func TestAllAndDelete(t *testing.T) {
 	store, ctx := newStore(t)
 	for _, chatID := range []int64{3, 1, 2} {
 		if err := store.Save(ctx, sample(chatID)); err != nil {
-			t.Fatalf("не удалось сохранить %d: %v", chatID, err)
+			t.Fatalf("cannot save %d: %v", chatID, err)
 		}
 	}
 
 	all, err := store.All(ctx)
 	if err != nil {
-		t.Fatalf("не удалось прочитать всех: %v", err)
+		t.Fatalf("cannot read all: %v", err)
 	}
 	if len(all) != 3 {
-		t.Fatalf("подписчиков = %d, ожидалось 3", len(all))
+		t.Fatalf("подписчиков = %d, want 3", len(all))
 	}
 	if all[0].ChatID != 1 || all[2].ChatID != 3 {
 		t.Errorf("порядок = %d, %d, %d", all[0].ChatID, all[1].ChatID, all[2].ChatID)
 	}
 
 	if err := store.Delete(ctx, 2); err != nil {
-		t.Fatalf("не удалось удалить: %v", err)
+		t.Fatalf("cannot delete: %v", err)
 	}
 	if count, _ := store.Count(ctx); count != 2 {
-		t.Errorf("после удаления подписчиков = %d, ожидалось 2", count)
+		t.Errorf("после удаления подписчиков = %d, want 2", count)
 	}
 	if err := store.Delete(ctx, 999); err != nil {
 		t.Errorf("удаление отсутствующего не должно быть ошибкой: %v", err)
@@ -156,22 +156,22 @@ func TestAllAndDelete(t *testing.T) {
 func TestMarkSentAndPending(t *testing.T) {
 	store, ctx := newStore(t)
 	if err := store.Save(ctx, sample(42)); err != nil {
-		t.Fatalf("не удалось сохранить: %v", err)
+		t.Fatalf("cannot save: %v", err)
 	}
 
 	if err := store.MarkSent(ctx, 42, "2026-09-10"); err != nil {
-		t.Fatalf("не удалось отметить рассылку: %v", err)
+		t.Fatalf("cannot mark the delivery: %v", err)
 	}
 	got, err := store.Get(ctx, 42)
 	if err != nil {
-		t.Fatalf("не удалось прочитать: %v", err)
+		t.Fatalf("cannot read: %v", err)
 	}
 	if got.LastSentDate != "2026-09-10" {
 		t.Errorf("дата рассылки = %q", got.LastSentDate)
 	}
 
 	if err := store.SetPending(ctx, 42, domain.PendingCity); err != nil {
-		t.Fatalf("не удалось сохранить ожидание: %v", err)
+		t.Fatalf("cannot store the pending input: %v", err)
 	}
 	got, _ = store.Get(ctx, 42)
 	if got.Pending != domain.PendingCity {
@@ -182,7 +182,7 @@ func TestMarkSentAndPending(t *testing.T) {
 	}
 
 	if err := store.SetPending(ctx, 42, domain.PendingNone); err != nil {
-		t.Fatalf("не удалось сбросить ожидание: %v", err)
+		t.Fatalf("cannot clear the pending input: %v", err)
 	}
 	got, _ = store.Get(ctx, 42)
 	if got.Pending != domain.PendingNone {
@@ -196,18 +196,18 @@ func TestStoreSurvivesReopen(t *testing.T) {
 
 	first, err := Open(ctx, path)
 	if err != nil {
-		t.Fatalf("не удалось открыть базу: %v", err)
+		t.Fatalf("cannot open the database: %v", err)
 	}
 	if err := first.Save(ctx, sample(42)); err != nil {
-		t.Fatalf("не удалось сохранить: %v", err)
+		t.Fatalf("cannot save: %v", err)
 	}
 	if err := first.Close(); err != nil {
-		t.Fatalf("не удалось закрыть базу: %v", err)
+		t.Fatalf("cannot close the database: %v", err)
 	}
 
 	second, err := Open(ctx, path)
 	if err != nil {
-		t.Fatalf("не удалось переоткрыть базу: %v", err)
+		t.Fatalf("cannot reopen the database: %v", err)
 	}
 	defer func() { _ = second.Close() }()
 

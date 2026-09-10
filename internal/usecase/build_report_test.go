@@ -21,17 +21,17 @@ func TestBuildMorningCoversWholeActiveWindow(t *testing.T) {
 
 	report, err := build.Build(context.Background(), testSubscriber(), ReportMorning)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(report.Hours) != 16 {
-		t.Errorf("часов = %d, ожидалось 16 (с 07 до 22)", len(report.Hours))
+		t.Errorf("часов = %d, want 16 (с 07 до 22)", len(report.Hours))
 	}
 	if first := report.Hours[0].Time.Hour(); first != 7 {
-		t.Errorf("первый час = %d, ожидалось 7", first)
+		t.Errorf("первый час = %d, want 7", first)
 	}
 	if last := report.Hours[len(report.Hours)-1].Time.Hour(); last != 22 {
-		t.Errorf("последний час = %d, ожидалось 22", last)
+		t.Errorf("последний час = %d, want 22", last)
 	}
 	if report.Date.Format(time.DateOnly) != "2026-09-10" {
 		t.Errorf("дата = %q", report.Date.Format(time.DateOnly))
@@ -48,14 +48,14 @@ func TestBuildTodayStartsFromCurrentHour(t *testing.T) {
 
 	report, err := build.Build(context.Background(), testSubscriber(), ReportToday)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if first := report.Hours[0].Time.Hour(); first != 15 {
-		t.Errorf("первый час = %d, ожидалось 15", first)
+		t.Errorf("первый час = %d, want 15", first)
 	}
 	if len(report.Hours) != 8 {
-		t.Errorf("часов = %d, ожидалось 8 (с 15 до 22)", len(report.Hours))
+		t.Errorf("часов = %d, want 8 (с 15 до 22)", len(report.Hours))
 	}
 }
 
@@ -66,17 +66,17 @@ func TestBuildTomorrowCoversNextDay(t *testing.T) {
 
 	report, err := build.Build(context.Background(), testSubscriber(), ReportTomorrow)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if report.Date.Format(time.DateOnly) != "2026-09-11" {
-		t.Errorf("дата = %q, ожидалось 2026-09-11", report.Date.Format(time.DateOnly))
+		t.Errorf("дата = %q, want 2026-09-11", report.Date.Format(time.DateOnly))
 	}
 	if len(report.Hours) != 16 {
-		t.Errorf("часов = %d, ожидалось 16", len(report.Hours))
+		t.Errorf("часов = %d, want 16", len(report.Hours))
 	}
 	if maximum, _ := report.Day.TemperatureMaxC.Get(); maximum != 18 {
-		t.Errorf("сводка дня = %v, ожидалось 18 (завтра)", maximum)
+		t.Errorf("сводка дня = %v, want 18 (завтра)", maximum)
 	}
 }
 
@@ -90,10 +90,10 @@ func TestBuildRespectsSubscriberWindow(t *testing.T) {
 
 	report, err := build.Build(context.Background(), subscriber, ReportMorning)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(report.Hours) != 4 {
-		t.Errorf("часов = %d, ожидалось 4", len(report.Hours))
+		t.Errorf("часов = %d, want 4", len(report.Hours))
 	}
 }
 
@@ -106,7 +106,7 @@ func TestBuildUsesSubscriberTimezone(t *testing.T) {
 	build := NewBuildReport(provider, clock, quietLogger())
 
 	if _, err := build.Build(context.Background(), subscriber, ReportMorning); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -116,7 +116,7 @@ func TestBuildFailsWhenProviderFails(t *testing.T) {
 	build := NewBuildReport(provider, clock, quietLogger())
 
 	if _, err := build.Build(context.Background(), testSubscriber(), ReportMorning); err == nil {
-		t.Fatal("ожидалась ошибка, её нет")
+		t.Fatal("expected an error, got none")
 	}
 }
 
@@ -129,7 +129,7 @@ func TestBuildFailsWhenNoHoursInWindow(t *testing.T) {
 	build := NewBuildReport(provider, clock, quietLogger())
 
 	if _, err := build.Build(context.Background(), subscriber, ReportToday); err == nil {
-		t.Fatal("ожидалась ошибка: в окне не осталось часов")
+		t.Fatal("expected an error: в окне не осталось часов")
 	}
 }
 
@@ -140,10 +140,10 @@ func TestCurrentWeather(t *testing.T) {
 
 	current, err := build.Current(context.Background(), testSubscriber())
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if temperature, _ := current.TemperatureC.Get(); temperature != 15.7 {
-		t.Errorf("температура = %v, ожидалось 15.7", temperature)
+		t.Errorf("температура = %v, want 15.7", temperature)
 	}
 }
 
@@ -156,6 +156,6 @@ func TestCurrentWeatherMissing(t *testing.T) {
 	build := NewBuildReport(provider, clock, quietLogger())
 
 	if _, err := build.Current(context.Background(), testSubscriber()); err == nil {
-		t.Fatal("ожидалась ошибка: текущей погоды нет в ответе")
+		t.Fatal("expected an error: текущей погоды нет в ответе")
 	}
 }

@@ -38,10 +38,10 @@ func TestCompassForBoundaries(t *testing.T) {
 				t.Fatal("румб пуст")
 			}
 			if point.Rose != tc.rose {
-				t.Errorf("румб для %d° = %d, ожидалось %d", tc.from, point.Rose, tc.rose)
+				t.Errorf("румб для %d° = %d, want %d", tc.from, point.Rose, tc.rose)
 			}
 			if point.Arrow != tc.arrow {
-				t.Errorf("стрелка для %d° = %q, ожидалось %q", tc.from, point.Arrow, tc.arrow)
+				t.Errorf("стрелка для %d° = %q, want %q", tc.from, point.Arrow, tc.arrow)
 			}
 		})
 	}
@@ -86,7 +86,7 @@ func TestWindLevelForThresholds(t *testing.T) {
 	for _, tc := range tests {
 		got := WindLevelFor(tc.speed)
 		if got != tc.want {
-			t.Errorf("WindLevelFor(%v) = %v, ожидалось %v", tc.speed, got, tc.want)
+			t.Errorf("WindLevelFor(%v) = %v, want %v", tc.speed, got, tc.want)
 		}
 
 	}
@@ -108,13 +108,13 @@ func TestWindLevelIconsAndAlerts(t *testing.T) {
 
 	for _, tc := range tests {
 		if tc.level.Icon() != tc.icon {
-			t.Errorf("иконка %v = %q, ожидалось %q", tc.level, tc.level.Icon(), tc.icon)
+			t.Errorf("иконка %v = %q, want %q", tc.level, tc.level.Icon(), tc.icon)
 		}
 		if tc.level.Alert() != tc.alert {
-			t.Errorf("предупреждение %v = %q, ожидалось %q", tc.level, tc.level.Alert(), tc.alert)
+			t.Errorf("предупреждение %v = %q, want %q", tc.level, tc.level.Alert(), tc.alert)
 		}
 		if tc.level.NeedsWindproof() != tc.windproof {
-			t.Errorf("ветрозащита %v = %v, ожидалось %v", tc.level, tc.level.NeedsWindproof(), tc.windproof)
+			t.Errorf("ветрозащита %v = %v, want %v", tc.level, tc.level.NeedsWindproof(), tc.windproof)
 		}
 	}
 }
@@ -129,20 +129,20 @@ func TestSummarizeWind(t *testing.T) {
 
 	summary := SummarizeWind(hours)
 	if speed, _ := summary.MaxSpeedMS.Get(); speed != 9.0 {
-		t.Errorf("максимум = %v, ожидалось 9.0", speed)
+		t.Errorf("максимум = %v, want 9.0", speed)
 	}
 	if gusts, _ := summary.MaxGustsMS.Get(); gusts != 13.9 {
-		t.Errorf("порывы = %v, ожидалось 13.9", gusts)
+		t.Errorf("порывы = %v, want 13.9", gusts)
 	}
 	if summary.GustWarning {
 		t.Error("порывы 13.9 не должны включать предупреждение")
 	}
 	if summary.Level != WindStrong {
-		t.Errorf("уровень = %v, ожидался сильный", summary.Level)
+		t.Errorf("уровень = %v, want сильный", summary.Level)
 	}
 	point, ok := summary.Direction.Get()
 	if !ok || point.Rose != RoseSouthWest {
-		t.Errorf("направление на пике = %v, ожидался юго-запад", point)
+		t.Errorf("направление на пике = %v, want юго-запад", point)
 	}
 }
 
@@ -159,7 +159,7 @@ func TestSummarizeWindEmptyAndMissing(t *testing.T) {
 		t.Error("для пустого набора часов сводка должна быть пустой")
 	}
 	if empty.Level != WindCalm {
-		t.Errorf("уровень = %v, ожидался штиль", empty.Level)
+		t.Errorf("уровень = %v, want штиль", empty.Level)
 	}
 
 	partial := SummarizeWind([]HourPoint{{WindSpeedMS: None[float64](), WindGustsMS: Some(3.0)}})
@@ -167,6 +167,6 @@ func TestSummarizeWindEmptyAndMissing(t *testing.T) {
 		t.Error("скорость должна остаться пустой")
 	}
 	if gusts, _ := partial.MaxGustsMS.Get(); gusts != 3.0 {
-		t.Errorf("порывы = %v, ожидалось 3.0", gusts)
+		t.Errorf("порывы = %v, want 3.0", gusts)
 	}
 }

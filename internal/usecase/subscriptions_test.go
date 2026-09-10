@@ -40,11 +40,11 @@ func TestEnsureCreatesSubscriberWithTelegramLanguage(t *testing.T) {
 
 	subscriber, err := subscriptions.Ensure(context.Background(), 42, "ru-RU")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if subscriber.Lang != string(i18n.Russian) {
-		t.Errorf("язык = %q, ожидался русский из Telegram", subscriber.Lang)
+		t.Errorf("язык = %q, want русский из Telegram", subscriber.Lang)
 	}
 	if subscriber.Place.Name != "Дрезден" || subscriber.TZName != "Europe/Berlin" {
 		t.Errorf("настройки по умолчанию не применились: %+v", subscriber)
@@ -63,18 +63,18 @@ func TestEnsureFallsBackToDefaultLanguage(t *testing.T) {
 
 	subscriber, err := subscriptions.Ensure(context.Background(), 42, "")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if subscriber.Lang != string(i18n.English) {
-		t.Errorf("язык = %q, ожидался английский", subscriber.Lang)
+		t.Errorf("язык = %q, want английский", subscriber.Lang)
 	}
 
 	unsupported, err := subscriptions.Ensure(context.Background(), 43, "fr-FR")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if unsupported.Lang != string(i18n.English) {
-		t.Errorf("язык = %q, ожидался английский для неподдерживаемого кода", unsupported.Lang)
+		t.Errorf("язык = %q, want английский для неподдерживаемого кода", unsupported.Lang)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestEnsureKeepsManualLanguageChoice(t *testing.T) {
 
 	subscriber, err := subscriptions.Ensure(context.Background(), 42, "ru")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if subscriber.Lang != string(i18n.German) {
 		t.Errorf("язык = %q, выбранный вручную не должен затираться", subscriber.Lang)
@@ -104,7 +104,7 @@ func TestSetPlace(t *testing.T) {
 	}
 	subscriber, err := subscriptions.SetPlace(context.Background(), 42, place)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if subscriber.Place.Name != "Прага" || subscriber.TZName != "Europe/Prague" {
 		t.Errorf("город не сохранился: %+v", subscriber)
@@ -122,13 +122,13 @@ func TestSetCoordinatesResolvesTimezone(t *testing.T) {
 	subscriber, err := subscriptions.SetCoordinates(context.Background(), 42,
 		domain.Location{Latitude: 35.68, Longitude: 139.69})
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if subscriber.TZName != "Asia/Tokyo" {
 		t.Errorf("таймзона = %q", subscriber.TZName)
 	}
 	if subscriber.Place.Name != "35.680, 139.690" {
-		t.Errorf("без названия ожидались координаты: %q", subscriber.Place.Name)
+		t.Errorf("без названия want координаты: %q", subscriber.Place.Name)
 	}
 }
 
@@ -137,7 +137,7 @@ func TestSetCoordinatesRejectsBadInput(t *testing.T) {
 	subscriptions := newSubscriptions(t, store, nil, nil, time.Now())
 
 	if _, err := subscriptions.SetCoordinates(context.Background(), 42, domain.Location{Latitude: 100}); err == nil {
-		t.Error("ожидалась ошибка для широты вне диапазона")
+		t.Error("expected an error для широты вне диапазона")
 	}
 }
 
@@ -147,7 +147,7 @@ func TestSetCoordinatesFailsWhenTimezoneUnknown(t *testing.T) {
 	subscriptions := newSubscriptions(t, store, nil, timezones, time.Now())
 
 	if _, err := subscriptions.SetCoordinates(context.Background(), 42, domain.Location{Latitude: 51, Longitude: 13}); err == nil {
-		t.Error("ожидалась ошибка определения таймзоны")
+		t.Error("expected an error определения таймзоны")
 	}
 }
 
@@ -160,7 +160,7 @@ func TestSetReportTime(t *testing.T) {
 
 	updated, err := subscriptions.SetReportTime(context.Background(), 42, "6:30")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if updated.ReportTime.String() != "06:30" {
 		t.Errorf("время = %q", updated.ReportTime)
@@ -170,7 +170,7 @@ func TestSetReportTime(t *testing.T) {
 	}
 
 	if _, err := subscriptions.SetReportTime(context.Background(), 42, "утром"); err == nil {
-		t.Error("ожидалась ошибка разбора времени")
+		t.Error("expected an error разбора времени")
 	}
 }
 
@@ -180,13 +180,13 @@ func TestSetLang(t *testing.T) {
 
 	subscriber, err := subscriptions.SetLang(context.Background(), 42, i18n.German)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if subscriber.Lang != string(i18n.German) {
 		t.Errorf("язык = %q", subscriber.Lang)
 	}
 	if _, err := subscriptions.SetLang(context.Background(), 42, i18n.Lang("fr")); err == nil {
-		t.Error("ожидалась ошибка для неподдерживаемого языка")
+		t.Error("expected an error для неподдерживаемого языка")
 	}
 }
 
@@ -196,18 +196,18 @@ func TestToggleWindUnit(t *testing.T) {
 
 	first, err := subscriptions.ToggleWindUnit(context.Background(), 42)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if first.WindUnit != domain.WindUnitKMH {
-		t.Errorf("единица = %q, ожидались км/ч", first.WindUnit)
+		t.Errorf("единица = %q, want км/ч", first.WindUnit)
 	}
 
 	second, err := subscriptions.ToggleWindUnit(context.Background(), 42)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if second.WindUnit != domain.WindUnitMS {
-		t.Errorf("единица = %q, ожидались м/с", second.WindUnit)
+		t.Errorf("единица = %q, want м/с", second.WindUnit)
 	}
 }
 
@@ -217,17 +217,17 @@ func TestSetPausedAndUnsubscribe(t *testing.T) {
 
 	paused, err := subscriptions.SetPaused(context.Background(), 42, true)
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !paused.Paused {
 		t.Error("рассылка должна встать на паузу")
 	}
 
 	if err := subscriptions.Unsubscribe(context.Background(), 42); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if _, err := subscriptions.Get(context.Background(), 42); !errors.Is(err, port.ErrSubscriberNotFound) {
-		t.Errorf("ошибка = %v, ожидалось отсутствие подписчика", err)
+		t.Errorf("ошибка = %v, expected no such subscriber", err)
 	}
 }
 
@@ -237,7 +237,7 @@ func TestSearchCitiesPassesQuery(t *testing.T) {
 
 	places, err := subscriptions.SearchCities(context.Background(), "Dresden", "de")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if geocoder.query != "Dresden" || len(places) != 1 {
 		t.Errorf("query = %q, found = %d", geocoder.query, len(places))
@@ -252,7 +252,7 @@ func TestSetPendingStoresAction(t *testing.T) {
 	subscriptions := newSubscriptions(t, store, nil, nil, time.Now())
 
 	if err := subscriptions.SetPending(context.Background(), 42, domain.PendingCity); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	subscriber, _ := store.Get(context.Background(), 42)
 	if subscriber.Pending != domain.PendingCity {
@@ -266,7 +266,7 @@ func TestSetActiveHours(t *testing.T) {
 
 	updated, err := subscriptions.SetActiveHours(context.Background(), 42, "9-18")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if updated.ActiveHours.String() != "09-18" {
 		t.Errorf("активные часы = %q", updated.ActiveHours)
@@ -277,7 +277,7 @@ func TestSetActiveHours(t *testing.T) {
 
 	for _, raw := range []string{"22-07", "07-24", "0722", "утром", ""} {
 		if _, err := subscriptions.SetActiveHours(context.Background(), 42, raw); err == nil {
-			t.Errorf("%q: ожидалась ошибка", raw)
+			t.Errorf("%q: expected an error", raw)
 		}
 	}
 

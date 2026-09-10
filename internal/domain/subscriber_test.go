@@ -21,7 +21,7 @@ func atBerlin(t *testing.T, day, hour, minute int) time.Time {
 	t.Helper()
 	location, err := time.LoadLocation("Europe/Berlin")
 	if err != nil {
-		t.Fatalf("не удалось загрузить таймзону: %v", err)
+		t.Fatalf("cannot load the timezone: %v", err)
 	}
 	return time.Date(2026, 9, day, hour, minute, 0, 0, location)
 }
@@ -83,7 +83,7 @@ func TestSubscriberDueAt(t *testing.T) {
 				tc.mutate(&subscriber)
 			}
 			if got := subscriber.DueAt(tc.now); got != tc.expected {
-				t.Errorf("DueAt(%v) = %v, ожидалось %v", tc.now.Format(time.RFC3339), got, tc.expected)
+				t.Errorf("DueAt(%v) = %v, want %v", tc.now.Format(time.RFC3339), got, tc.expected)
 			}
 		})
 	}
@@ -118,7 +118,7 @@ func TestSubscriberDueAtSurvivesDSTSwitch(t *testing.T) {
 		t.Error("в день перехода на зимнее время рассылка должна сработать в 07:00 местного времени")
 	}
 	if _, offset := beforeSwitch.Zone(); offset != 3600 {
-		t.Errorf("смещение после перехода = %d, ожидалось 3600", offset)
+		t.Errorf("смещение после перехода = %d, want 3600", offset)
 	}
 }
 
@@ -152,12 +152,12 @@ func TestSubscriberValidate(t *testing.T) {
 			err := subscriber.Validate()
 			if tc.mustSay == "" {
 				if err != nil {
-					t.Fatalf("неожиданная ошибка: %v", err)
+					t.Fatalf("unexpected error: %v", err)
 				}
 				return
 			}
 			if err == nil {
-				t.Fatal("ожидалась ошибка, её нет")
+				t.Fatal("expected an error, got none")
 			}
 			if !strings.Contains(err.Error(), tc.mustSay) {
 				t.Errorf("ошибка %q не упоминает %q", err, tc.mustSay)
@@ -187,7 +187,7 @@ func TestParseDayTime(t *testing.T) {
 		got, err := ParseDayTime(tc.raw)
 		if tc.error {
 			if err == nil {
-				t.Errorf("%q: ожидалась ошибка", tc.raw)
+				t.Errorf("%q: expected an error", tc.raw)
 			}
 			continue
 		}
@@ -196,7 +196,7 @@ func TestParseDayTime(t *testing.T) {
 			continue
 		}
 		if got.String() != tc.want {
-			t.Errorf("%q разобрано как %q, ожидалось %q", tc.raw, got, tc.want)
+			t.Errorf("%q разобрано как %q, want %q", tc.raw, got, tc.want)
 		}
 	}
 }
@@ -212,14 +212,14 @@ func TestDayTimeOn(t *testing.T) {
 func TestParseHourWindow(t *testing.T) {
 	window, err := ParseHourWindow("07-22")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !window.Contains(7) || !window.Contains(22) || window.Contains(6) || window.Contains(23) {
 		t.Error("границы окна работают неверно")
 	}
 	for _, raw := range []string{"22-07", "07-24", "0722", "", "a-b"} {
 		if _, err := ParseHourWindow(raw); err == nil {
-			t.Errorf("%q: ожидалась ошибка", raw)
+			t.Errorf("%q: expected an error", raw)
 		}
 	}
 }
@@ -229,7 +229,7 @@ func TestWindUnitConversion(t *testing.T) {
 		t.Errorf("м/с = %v", got)
 	}
 	if got := WindUnitKMH.FromMS(10); got != 36 {
-		t.Errorf("км/ч = %v, ожидалось 36", got)
+		t.Errorf("км/ч = %v, want 36", got)
 	}
 	if WindUnitMS.Label() != "м/с" || WindUnitKMH.Label() != "км/ч" {
 		t.Error("подписи единиц неверны")
@@ -240,6 +240,6 @@ func TestWindUnitConversion(t *testing.T) {
 		}
 	}
 	if _, err := ParseWindUnit("mph"); err == nil {
-		t.Error("ожидалась ошибка для mph")
+		t.Error("expected an error для mph")
 	}
 }

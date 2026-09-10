@@ -40,19 +40,19 @@ func TestSearch(t *testing.T) {
 
 	places, err := client.Search(context.Background(), " Дрезден ", 5, "ru")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	query := (*seen)[0].URL.Query()
 	if query.Get("name") != "Дрезден" {
-		t.Errorf("name = %q, ожидалось Дрезден без пробелов", query.Get("name"))
+		t.Errorf("name = %q, want Дрезден без пробелов", query.Get("name"))
 	}
 	if query.Get("count") != "5" || query.Get("language") != "ru" || query.Get("format") != "json" {
 		t.Errorf("параметры запроса неверны: %v", query)
 	}
 
 	if len(places) != 2 {
-		t.Fatalf("найдено = %d, ожидалось 2", len(places))
+		t.Fatalf("найдено = %d, want 2", len(places))
 	}
 	first := places[0]
 	if first.Name != "Дрезден" || first.TZName != "Europe/Berlin" {
@@ -72,12 +72,12 @@ func TestSearchLimits(t *testing.T) {
 
 	for _, limit := range []int{0, -5, 100} {
 		if _, err := client.Search(context.Background(), "Дрезден", limit, "ru"); err != nil {
-			t.Fatalf("неожиданная ошибка: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 	}
 	counts := []string{(*seen)[0].URL.Query().Get("count"), (*seen)[1].URL.Query().Get("count"), (*seen)[2].URL.Query().Get("count")}
 	if counts[0] != "1" || counts[1] != "1" || counts[2] != "10" {
-		t.Errorf("count = %v, ожидалось [1 1 10]", counts)
+		t.Errorf("count = %v, want [1 1 10]", counts)
 	}
 }
 
@@ -87,7 +87,7 @@ func TestSearchNothingFound(t *testing.T) {
 
 	_, err := client.Search(context.Background(), "Атлантида", 5, "ru")
 	if !errors.Is(err, ErrNothingFound) {
-		t.Errorf("ошибка = %v, ожидалась ErrNothingFound", err)
+		t.Errorf("ошибка = %v, expected ErrNothingFound", err)
 	}
 }
 
@@ -101,17 +101,17 @@ func TestSearchSkipsResultsWithUnknownTimezone(t *testing.T) {
 
 	places, err := client.Search(context.Background(), "город", 5, "ru")
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(places) != 1 || places[0].Name != "Дрезден" {
-		t.Errorf("результаты = %+v, ожидался только Дрезден", places)
+		t.Errorf("результаты = %+v, want only Dresden", places)
 	}
 }
 
 func TestSearchEmptyQuery(t *testing.T) {
 	client := New(Options{BaseURL: "http://example.invalid"})
 	if _, err := client.Search(context.Background(), "   ", 5, "ru"); err == nil {
-		t.Error("ожидалась ошибка для пустого запроса")
+		t.Error("expected an error для пустого запроса")
 	}
 }
 
@@ -121,7 +121,7 @@ func TestSearchAPIError(t *testing.T) {
 
 	_, err := client.Search(context.Background(), "Дрезден", 5, "ru")
 	if err == nil {
-		t.Fatal("ожидалась ошибка, её нет")
+		t.Fatal("expected an error, got none")
 	}
 	if !strings.Contains(err.Error(), "400") || !strings.Contains(err.Error(), "Parameter name is required") {
 		t.Errorf("ошибка не содержит статус и причину: %v", err)
@@ -132,7 +132,7 @@ func TestSearchBrokenJSON(t *testing.T) {
 	server, _ := serve(t, http.StatusOK, `{"results":`)
 	client := New(Options{BaseURL: server.URL})
 	if _, err := client.Search(context.Background(), "Дрезден", 5, "ru"); err == nil {
-		t.Error("ожидалась ошибка разбора")
+		t.Error("expected an error разбора")
 	}
 }
 
@@ -147,7 +147,7 @@ func TestSearchRespectsContext(t *testing.T) {
 	cancel()
 
 	if _, err := client.Search(ctx, "Дрезден", 5, "ru"); err == nil {
-		t.Error("ожидалась ошибка отменённого контекста")
+		t.Error("expected an error отменённого контекста")
 	}
 }
 
@@ -163,7 +163,7 @@ func TestTitle(t *testing.T) {
 	}
 	for _, tc := range tests {
 		if got := Title(tc.place); got != tc.want {
-			t.Errorf("Title(%+v) = %q, ожидалось %q", tc.place, got, tc.want)
+			t.Errorf("Title(%+v) = %q, want %q", tc.place, got, tc.want)
 		}
 	}
 }

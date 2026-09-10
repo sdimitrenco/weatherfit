@@ -125,7 +125,7 @@ func (a *apiStub) last(t *testing.T) sentMessage {
 	t.Helper()
 	messages := a.sent()
 	if len(messages) == 0 {
-		t.Fatal("бот не отправил ни одного сообщения")
+		t.Fatal("the bot sent no messages")
 	}
 	return messages[len(messages)-1]
 }
@@ -293,7 +293,7 @@ func newHarness(t *testing.T, access Access, store *memoryStore) *harness {
 		},
 	})
 	if err != nil {
-		t.Fatalf("не удалось создать бота: %v", err)
+		t.Fatalf("cannot create the bot: %v", err)
 	}
 
 	return &harness{bot: served, api: api, store: store, geocoder: geocoder, timezones: timezones}
@@ -307,7 +307,7 @@ func berlin(t *testing.T) *time.Location {
 	t.Helper()
 	location, err := time.LoadLocation("Europe/Berlin")
 	if err != nil {
-		t.Fatalf("не удалось загрузить таймзону: %v", err)
+		t.Fatalf("cannot load the timezone: %v", err)
 	}
 	return location
 }
@@ -396,10 +396,10 @@ func TestStartCreatesSubscriberAndShowsKeyboard(t *testing.T) {
 
 	stored, err := harness.store.Get(context.Background(), 42)
 	if err != nil {
-		t.Fatalf("подписчик не создан: %v", err)
+		t.Fatalf("the subscriber was not created: %v", err)
 	}
 	if stored.Lang != string(i18n.Russian) {
-		t.Errorf("язык = %q, ожидался русский из Telegram", stored.Lang)
+		t.Errorf("язык = %q, want русский из Telegram", stored.Lang)
 	}
 
 	message := harness.api.last(t)
@@ -407,7 +407,7 @@ func TestStartCreatesSubscriberAndShowsKeyboard(t *testing.T) {
 		t.Errorf("сообщение = %+v", message)
 	}
 	if len(message.ReplyMarkup.Keyboard) != 2 {
-		t.Fatalf("клавиатура = %+v, ожидалось два ряда", message.ReplyMarkup.Keyboard)
+		t.Fatalf("клавиатура = %+v, want два ряда", message.ReplyMarkup.Keyboard)
 	}
 	if message.ReplyMarkup.Keyboard[0][0].Text != i18n.For(i18n.Russian).T(i18n.KeyButtonNow) {
 		t.Errorf("первая кнопка = %q", message.ReplyMarkup.Keyboard[0][0].Text)
@@ -685,7 +685,7 @@ func TestStopUnsubscribes(t *testing.T) {
 	harness.bot.api.ProcessUpdate(context.Background(), textMessage(42, "/stop", "ru"))
 
 	if count, _ := harness.store.Count(context.Background()); count != 0 {
-		t.Errorf("подписчиков = %d, ожидался ноль", count)
+		t.Errorf("подписчиков = %d, want ноль", count)
 	}
 }
 
@@ -732,7 +732,7 @@ func TestSendReportsBlockedRecipient(t *testing.T) {
 
 	err := harness.bot.Send(context.Background(), 42, "текст")
 	if !errors.Is(err, usecase.ErrBlocked) {
-		t.Errorf("ошибка = %v, ожидалась ErrBlocked", err)
+		t.Errorf("ошибка = %v, expected ErrBlocked", err)
 	}
 }
 
@@ -740,7 +740,7 @@ func TestSendAttachesKeyboard(t *testing.T) {
 	harness := newHarness(t, openAccess{}, newMemoryStore(subscriber(42, i18n.Russian)))
 
 	if err := harness.bot.Send(context.Background(), 42, "утренний отчёт"); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	message := harness.api.last(t)
@@ -754,7 +754,7 @@ func TestSendAttachesKeyboard(t *testing.T) {
 
 func TestNewRequiresToken(t *testing.T) {
 	if _, err := New(Options{}); err == nil {
-		t.Error("ожидалась ошибка для пустого токена")
+		t.Error("expected an error для пустого токена")
 	}
 }
 

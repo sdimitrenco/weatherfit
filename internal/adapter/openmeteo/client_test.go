@@ -20,7 +20,7 @@ func berlin(t *testing.T) *time.Location {
 	t.Helper()
 	location, err := time.LoadLocation("Europe/Berlin")
 	if err != nil {
-		t.Fatalf("не удалось загрузить таймзону: %v", err)
+		t.Fatalf("cannot load the timezone: %v", err)
 	}
 	return location
 }
@@ -29,7 +29,7 @@ func fixture(t *testing.T, name string) []byte {
 	t.Helper()
 	body, err := os.ReadFile(filepath.Join(fixtureDir, name))
 	if err != nil {
-		t.Fatalf("не удалось прочитать фикстуру %s: %v", name, err)
+		t.Fatalf("cannot read the fixture %s: %v", name, err)
 	}
 	return body
 }
@@ -69,11 +69,11 @@ func TestForecastSendsExpectedQuery(t *testing.T) {
 	client := newTestClient(t, server.URL)
 
 	if _, err := client.Forecast(context.Background(), dresden(t, 2)); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(*seen) != 1 {
-		t.Fatalf("запросов = %d, ожидался 1", len(*seen))
+		t.Fatalf("запросов = %d, want 1", len(*seen))
 	}
 	request := (*seen)[0]
 	query := request.URL.Query()
@@ -87,7 +87,7 @@ func TestForecastSendsExpectedQuery(t *testing.T) {
 	}
 	for key, value := range want {
 		if got := query.Get(key); got != value {
-			t.Errorf("%s = %q, ожидалось %q", key, got, value)
+			t.Errorf("%s = %q, want %q", key, got, value)
 		}
 	}
 
@@ -112,14 +112,14 @@ func TestForecastMapsRealFixture(t *testing.T) {
 
 	forecast, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if len(forecast.Hours) != 48 {
-		t.Errorf("часов = %d, ожидалось 48", len(forecast.Hours))
+		t.Errorf("часов = %d, want 48", len(forecast.Hours))
 	}
 	if len(forecast.Days) != 2 {
-		t.Errorf("дней = %d, ожидалось 2", len(forecast.Days))
+		t.Errorf("дней = %d, want 2", len(forecast.Days))
 	}
 	if forecast.Location.Name != "Дрезден" {
 		t.Errorf("локация = %q", forecast.Location.Name)
@@ -127,7 +127,7 @@ func TestForecastMapsRealFixture(t *testing.T) {
 
 	first := forecast.Hours[0]
 	if got := first.Time.Format(time.RFC3339); got != "2026-09-10T00:00:00+02:00" {
-		t.Errorf("первый час = %q, ожидалось локальное время со смещением +02:00", got)
+		t.Errorf("первый час = %q, want локальное время со смещением +02:00", got)
 	}
 	if first.Time.Location().String() != "Europe/Berlin" {
 		t.Errorf("таймзона часа = %q", first.Time.Location())
@@ -135,22 +135,22 @@ func TestForecastMapsRealFixture(t *testing.T) {
 
 	hour7 := forecast.Hours[7]
 	if temperature, ok := hour7.TemperatureC.Get(); !ok || temperature != 13.6 {
-		t.Errorf("температура 07:00 = %v, %v, ожидалось 13.6", temperature, ok)
+		t.Errorf("температура 07:00 = %v, %v, want 13.6", temperature, ok)
 	}
 	if apparent, ok := hour7.ApparentTemperatureC.Get(); !ok || apparent != 12.2 {
-		t.Errorf("ощущаемая 07:00 = %v, %v, ожидалось 12.2", apparent, ok)
+		t.Errorf("ощущаемая 07:00 = %v, %v, want 12.2", apparent, ok)
 	}
 	if code, ok := hour7.WeatherCode.Get(); !ok || code != 3 {
-		t.Errorf("код погоды 07:00 = %v, %v, ожидалось 3", code, ok)
+		t.Errorf("код погоды 07:00 = %v, %v, want 3", code, ok)
 	}
 	if speed, ok := hour7.WindSpeedMS.Get(); !ok || speed != 2.45 {
-		t.Errorf("ветер 07:00 = %v, %v, ожидалось 2.45", speed, ok)
+		t.Errorf("ветер 07:00 = %v, %v, want 2.45", speed, ok)
 	}
 	if direction, ok := hour7.WindDirectionDeg.Get(); !ok || direction != 258 {
-		t.Errorf("направление 07:00 = %v, %v, ожидалось 258", direction, ok)
+		t.Errorf("направление 07:00 = %v, %v, want 258", direction, ok)
 	}
 	if isDay, ok := hour7.IsDay.Get(); !ok || !isDay {
-		t.Errorf("is_day 07:00 = %v, %v, ожидался день", isDay, ok)
+		t.Errorf("is_day 07:00 = %v, %v, want день", isDay, ok)
 	}
 
 	day := forecast.Days[0]
@@ -159,7 +159,7 @@ func TestForecastMapsRealFixture(t *testing.T) {
 	}
 	sunrise, ok := day.Sunrise.Get()
 	if !ok || sunrise.Format("15:04") != "06:32" {
-		t.Errorf("рассвет = %v, %v, ожидалось 06:32", sunrise, ok)
+		t.Errorf("рассвет = %v, %v, want 06:32", sunrise, ok)
 	}
 	if sunrise.Location().String() != "Europe/Berlin" {
 		t.Errorf("таймзона рассвета = %q", sunrise.Location())
@@ -172,7 +172,7 @@ func TestForecastMapsCurrentBlock(t *testing.T) {
 
 	forecast, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	current, ok := forecast.Current.Get()
@@ -183,13 +183,13 @@ func TestForecastMapsCurrentBlock(t *testing.T) {
 		t.Errorf("таймзона current = %q", current.Time.Location())
 	}
 	if temperature, has := current.TemperatureC.Get(); !has || temperature != 15.7 {
-		t.Errorf("температура сейчас = %v, %v, ожидалось 15.7", temperature, has)
+		t.Errorf("температура сейчас = %v, %v, want 15.7", temperature, has)
 	}
 	if humidity, has := current.RelativeHumidity.Get(); !has || humidity != 68 {
-		t.Errorf("влажность = %v, %v, ожидалось 68", humidity, has)
+		t.Errorf("влажность = %v, %v, want 68", humidity, has)
 	}
 	if isDay, has := current.IsDay.Get(); !has || !isDay {
-		t.Errorf("is_day = %v, %v, ожидался день", isDay, has)
+		t.Errorf("is_day = %v, %v, want день", isDay, has)
 	}
 }
 
@@ -198,10 +198,10 @@ func TestForecastAlwaysRequestsMetersPerSecond(t *testing.T) {
 	client := newTestClient(t, server.URL)
 
 	if _, err := client.Forecast(context.Background(), dresden(t, 2)); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if got := (*seen)[0].URL.Query().Get("wind_speed_unit"); got != "ms" {
-		t.Errorf("wind_speed_unit = %q, ожидалось ms: домен всегда хранит м/с", got)
+		t.Errorf("wind_speed_unit = %q, want ms: домен всегда хранит м/с", got)
 	}
 	for _, variable := range currentVariables {
 		if !strings.Contains((*seen)[0].URL.Query().Get("current"), variable) {
@@ -216,7 +216,7 @@ func TestForecastKeepsMissingValuesEmpty(t *testing.T) {
 
 	forecast, err := client.Forecast(context.Background(), dresden(t, 1))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	first, second := forecast.Hours[0], forecast.Hours[1]
@@ -238,11 +238,11 @@ func TestForecastKeepsMissingValuesEmpty(t *testing.T) {
 		t.Error("пустые поля дня не должны быть заполнены")
 	}
 	if minimum, ok := day.TemperatureMinC.Get(); !ok || minimum != 8.0 {
-		t.Errorf("минимум = %v, %v, ожидалось 8.0", minimum, ok)
+		t.Errorf("минимум = %v, %v, want 8.0", minimum, ok)
 	}
 	sunset, ok := day.Sunset.Get()
 	if !ok || sunset.Format("15:04") != "19:36" {
-		t.Errorf("закат = %v, %v, ожидалось 19:36", sunset, ok)
+		t.Errorf("закат = %v, %v, want 19:36", sunset, ok)
 	}
 }
 
@@ -256,7 +256,7 @@ func TestForecastAPIError(t *testing.T) {
 	client := newTestClient(t, server.URL)
 	_, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err == nil {
-		t.Fatal("ожидалась ошибка, её нет")
+		t.Fatal("expected an error, got none")
 	}
 	if !strings.Contains(err.Error(), "400") || !strings.Contains(err.Error(), "invalid String value") {
 		t.Errorf("ошибка не содержит статус и причину: %v", err)
@@ -273,7 +273,7 @@ func TestForecastServerErrorWithoutReason(t *testing.T) {
 	client := newTestClient(t, server.URL)
 	_, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err == nil || !strings.Contains(err.Error(), "502") {
-		t.Errorf("ошибка = %v, ожидалось упоминание 502", err)
+		t.Errorf("ошибка = %v, want a mention of 502", err)
 	}
 }
 
@@ -285,7 +285,7 @@ func TestForecastBrokenJSON(t *testing.T) {
 
 	client := newTestClient(t, server.URL)
 	if _, err := client.Forecast(context.Background(), dresden(t, 2)); err == nil {
-		t.Fatal("ожидалась ошибка разбора, её нет")
+		t.Fatal("expected an error разбора, её нет")
 	}
 }
 
@@ -298,7 +298,7 @@ func TestForecastEmptyHourlyBlock(t *testing.T) {
 	client := newTestClient(t, server.URL)
 	_, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err == nil || !strings.Contains(err.Error(), "нет почасовых данных") {
-		t.Errorf("ошибка = %v, ожидалось сообщение о пустых данных", err)
+		t.Errorf("ошибка = %v, want сообщение о пустых данных", err)
 	}
 }
 
@@ -313,7 +313,7 @@ func TestForecastRespectsContextCancellation(t *testing.T) {
 	cancel()
 
 	if _, err := client.Forecast(ctx, dresden(t, 2)); err == nil {
-		t.Fatal("ожидалась ошибка отменённого контекста, её нет")
+		t.Fatal("expected an error отменённого контекста, её нет")
 	}
 }
 
@@ -321,7 +321,7 @@ func TestForecastRejectsBadArguments(t *testing.T) {
 	client := newTestClient(t, "http://example.invalid")
 	for _, days := range []int{0, -1, 17} {
 		if _, err := client.Forecast(context.Background(), dresden(t, days)); err == nil {
-			t.Errorf("forecast_days=%d: ожидалась ошибка", days)
+			t.Errorf("forecast_days=%d: expected an error", days)
 		}
 	}
 }
@@ -335,7 +335,7 @@ func TestNewFillsDefaults(t *testing.T) {
 		t.Errorf("User-Agent = %q", client.userAgent)
 	}
 	if client.httpClient.Timeout != DefaultTimeout {
-		t.Errorf("таймаут = %v, ожидалось %v", client.httpClient.Timeout, DefaultTimeout)
+		t.Errorf("таймаут = %v, want %v", client.httpClient.Timeout, DefaultTimeout)
 	}
 }
 
@@ -345,13 +345,13 @@ func TestForecastRejectsBadRequest(t *testing.T) {
 	noTimezone := dresden(t, 2)
 	noTimezone.Timezone = nil
 	if _, err := client.Forecast(context.Background(), noTimezone); err == nil {
-		t.Error("ожидалась ошибка для пустой таймзоны")
+		t.Error("expected an error для пустой таймзоны")
 	}
 
 	badPlace := dresden(t, 2)
 	badPlace.Place.Latitude = 100
 	if _, err := client.Forecast(context.Background(), badPlace); err == nil {
-		t.Error("ожидалась ошибка для широты вне диапазона")
+		t.Error("expected an error для широты вне диапазона")
 	}
 }
 
@@ -361,20 +361,20 @@ func TestResolveTimezone(t *testing.T) {
 
 	name, err := client.ResolveTimezone(context.Background(), domain.Location{Latitude: 51.05, Longitude: 13.74})
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if name != "Europe/Berlin" {
-		t.Errorf("таймзона = %q, ожидалось Europe/Berlin", name)
+		t.Errorf("таймзона = %q, want Europe/Berlin", name)
 	}
 	if got := (*seen)[0].URL.Query().Get("timezone"); got != "auto" {
-		t.Errorf("timezone = %q, ожидалось auto", got)
+		t.Errorf("timezone = %q, want auto", got)
 	}
 }
 
 func TestResolveTimezoneRejectsBadCoordinates(t *testing.T) {
 	client := newTestClient(t, "http://example.invalid")
 	if _, err := client.ResolveTimezone(context.Background(), domain.Location{Latitude: 100}); err == nil {
-		t.Error("ожидалась ошибка для широты вне диапазона")
+		t.Error("expected an error для широты вне диапазона")
 	}
 }
 

@@ -166,7 +166,7 @@ func berlin(t *testing.T) *time.Location {
 	t.Helper()
 	location, err := time.LoadLocation("Europe/Berlin")
 	if err != nil {
-		t.Fatalf("не удалось загрузить таймзону: %v", err)
+		t.Fatalf("cannot load the timezone: %v", err)
 	}
 	return location
 }

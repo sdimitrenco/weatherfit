@@ -41,29 +41,29 @@ func TestConditionForKnownCodes(t *testing.T) {
 			t.Errorf("код %d должен быть известен", tc.code)
 		}
 		if condition.Icon != tc.icon {
-			t.Errorf("иконка кода %d = %q, ожидалось %q", tc.code, condition.Icon, tc.icon)
+			t.Errorf("иконка кода %d = %q, want %q", tc.code, condition.Icon, tc.icon)
 		}
 		if condition.Kind != tc.kind {
-			t.Errorf("вид кода %d = %q, ожидалось %q", tc.code, condition.Kind, tc.kind)
+			t.Errorf("вид кода %d = %q, want %q", tc.code, condition.Kind, tc.kind)
 		}
 		if condition.Code != tc.code {
-			t.Errorf("код = %d, ожидалось %d", condition.Code, tc.code)
+			t.Errorf("код = %d, want %d", condition.Code, tc.code)
 		}
 	}
 }
 
 func TestConditionForClearSkyAtNight(t *testing.T) {
 	if got := ConditionFor(Some(0), Some(false)).Icon; got != "🌙" {
-		t.Errorf("ночная иконка = %q, ожидалось 🌙", got)
+		t.Errorf("ночная иконка = %q, want 🌙", got)
 	}
 	if got := ConditionFor(Some(0), Some(true)).Icon; got != "☀️" {
-		t.Errorf("дневная иконка = %q, ожидалось ☀️", got)
+		t.Errorf("дневная иконка = %q, want ☀️", got)
 	}
 	if got := ConditionFor(Some(0), None[bool]()).Icon; got != "☀️" {
-		t.Errorf("без is_day иконка = %q, ожидалось ☀️", got)
+		t.Errorf("без is_day иконка = %q, want ☀️", got)
 	}
 	if got := ConditionFor(Some(3), Some(false)).Icon; got != "☁️" {
-		t.Errorf("пасмурно ночью = %q, ожидалось ☁️", got)
+		t.Errorf("пасмурно ночью = %q, want ☁️", got)
 	}
 }
 
@@ -109,13 +109,13 @@ func TestHazardPredicates(t *testing.T) {
 
 	for _, tc := range tests {
 		if got := IsThunderstorm(Some(tc.code)); got != tc.thunder {
-			t.Errorf("IsThunderstorm(%d) = %v, ожидалось %v", tc.code, got, tc.thunder)
+			t.Errorf("IsThunderstorm(%d) = %v, want %v", tc.code, got, tc.thunder)
 		}
 		if got := IsFreezing(Some(tc.code)); got != tc.freeze {
-			t.Errorf("IsFreezing(%d) = %v, ожидалось %v", tc.code, got, tc.freeze)
+			t.Errorf("IsFreezing(%d) = %v, want %v", tc.code, got, tc.freeze)
 		}
 		if got := IsSnow(Some(tc.code)); got != tc.snow {
-			t.Errorf("IsSnow(%d) = %v, ожидалось %v", tc.code, got, tc.snow)
+			t.Errorf("IsSnow(%d) = %v, want %v", tc.code, got, tc.snow)
 		}
 	}
 

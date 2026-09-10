@@ -32,25 +32,25 @@ func TestAnalyzeAggregates(t *testing.T) {
 	report := Analyze(location, hourAt(0), DaySummary{}, sunnyHours())
 
 	if len(report.Hours) != 4 {
-		t.Fatalf("часов = %d, ожидалось 4", len(report.Hours))
+		t.Fatalf("часов = %d, want 4", len(report.Hours))
 	}
 	if minimum, _ := report.TemperatureMinC.Get(); minimum != 13 {
-		t.Errorf("минимум температуры = %v, ожидалось 13", minimum)
+		t.Errorf("минимум температуры = %v, want 13", minimum)
 	}
 	if maximum, _ := report.TemperatureMaxC.Get(); maximum != 16 {
-		t.Errorf("максимум температуры = %v, ожидалось 16", maximum)
+		t.Errorf("максимум температуры = %v, want 16", maximum)
 	}
 	if minimum, _ := report.ApparentMinC.Get(); minimum != 11 {
-		t.Errorf("минимум ощущаемой = %v, ожидалось 11", minimum)
+		t.Errorf("минимум ощущаемой = %v, want 11", minimum)
 	}
 	if maximum, _ := report.ApparentMaxC.Get(); maximum != 14 {
-		t.Errorf("максимум ощущаемой = %v, ожидалось 14", maximum)
+		t.Errorf("максимум ощущаемой = %v, want 14", maximum)
 	}
 	if uv, _ := report.UVIndexMax.Get(); uv != 4 {
-		t.Errorf("максимум УФ = %v, ожидалось 4", uv)
+		t.Errorf("максимум УФ = %v, want 4", uv)
 	}
 	if report.Precipitation.Verdict != RainNotNeeded {
-		t.Errorf("вердикт = %v, ожидалось «не нужно»", report.Precipitation.Verdict)
+		t.Errorf("вердикт = %v, want «не нужно»", report.Precipitation.Verdict)
 	}
 	if report.Hours[0].Condition.Icon != "☀️" {
 		t.Errorf("иконка первого часа = %q", report.Hours[0].Condition.Icon)
@@ -73,13 +73,13 @@ func TestAnalyzeFallsBackToDailySummary(t *testing.T) {
 
 	report := Analyze(Location{}, hourAt(0), day, hours)
 	if minimum, _ := report.TemperatureMinC.Get(); minimum != 8 {
-		t.Errorf("минимум = %v, ожидалось 8 из daily", minimum)
+		t.Errorf("минимум = %v, want 8 из daily", minimum)
 	}
 	if maximum, _ := report.ApparentMaxC.Get(); maximum != 17 {
-		t.Errorf("максимум ощущаемой = %v, ожидалось 17 из daily", maximum)
+		t.Errorf("максимум ощущаемой = %v, want 17 из daily", maximum)
 	}
 	if uv, _ := report.UVIndexMax.Get(); uv != 4 {
-		t.Errorf("УФ = %v, ожидалось 4 из daily", uv)
+		t.Errorf("УФ = %v, want 4 из daily", uv)
 	}
 }
 
@@ -94,7 +94,7 @@ func TestAnalyzeCollectsUnknownCodes(t *testing.T) {
 
 	report := Analyze(Location{}, hourAt(0), DaySummary{}, hours)
 	if len(report.UnknownCodes) != 2 {
-		t.Fatalf("неизвестных кодов = %v, ожидалось два уникальных", report.UnknownCodes)
+		t.Fatalf("неизвестных кодов = %v, want two unique values", report.UnknownCodes)
 	}
 	if report.UnknownCodes[0] != 42 || report.UnknownCodes[1] != 199 {
 		t.Errorf("неизвестные коды = %v", report.UnknownCodes)
@@ -176,16 +176,16 @@ func TestHeadlines(t *testing.T) {
 			report := Analyze(Location{}, hourAt(0), DaySummary{}, tc.hours)
 			headlines := report.Headlines()
 			if len(headlines) != 2 {
-				t.Fatalf("строк вердикта = %d, ожидалось 2", len(headlines))
+				t.Fatalf("строк вердикта = %d, want 2", len(headlines))
 			}
 			if headlines[0].Kind != tc.rainKind {
-				t.Errorf("вердикт по дождю = %q, ожидался %q", headlines[0].Kind, tc.rainKind)
+				t.Errorf("вердикт по дождю = %q, want %q", headlines[0].Kind, tc.rainKind)
 			}
 			if headlines[1].Kind != HeadlineOutfit {
-				t.Errorf("вторая строка = %q, ожидался вердикт по одежде", headlines[1].Kind)
+				t.Errorf("вторая строка = %q, want вердикт по одежде", headlines[1].Kind)
 			}
 			if headlines[1].Band != tc.band {
-				t.Errorf("комплект = %q, ожидался %q", headlines[1].Band, tc.band)
+				t.Errorf("комплект = %q, want %q", headlines[1].Band, tc.band)
 			}
 			for _, headline := range headlines {
 				if headline.Icon == "" {
@@ -206,11 +206,11 @@ func TestHeadlinesCarryRainWindows(t *testing.T) {
 	report := Analyze(Location{}, hourAt(0), DaySummary{}, hours)
 	windows := report.Headlines()[0].Windows
 	if len(windows) != 1 {
-		t.Fatalf("окон = %d, ожидалось 1", len(windows))
+		t.Fatalf("окон = %d, want 1", len(windows))
 	}
 	from, to := windows[0].Hours()
 	if from != 14 || to != 15 {
-		t.Errorf("окно = %d–%d, ожидалось 14–15", from, to)
+		t.Errorf("окно = %d–%d, want 14–15", from, to)
 	}
 }
 
@@ -234,7 +234,7 @@ func TestForecastSelectors(t *testing.T) {
 		t.Fatal("день не найден")
 	}
 	if maximum, _ := today.TemperatureMaxC.Get(); maximum != 22 {
-		t.Errorf("максимум сегодня = %v, ожидалось 22", maximum)
+		t.Errorf("максимум сегодня = %v, want 22", maximum)
 	}
 
 	if _, found := forecast.Day(time.Date(2026, 9, 12, 0, 0, 0, 0, berlinTZ)); found {
@@ -242,15 +242,15 @@ func TestForecastSelectors(t *testing.T) {
 	}
 
 	if hours := forecast.HoursOfDay(hourAt(0)); len(hours) != 2 {
-		t.Errorf("часов сегодня = %d, ожидалось 2", len(hours))
+		t.Errorf("часов сегодня = %d, want 2", len(hours))
 	}
 	if hours := forecast.HoursOfDay(time.Date(2026, 9, 11, 12, 0, 0, 0, berlinTZ)); len(hours) != 2 {
-		t.Errorf("часов завтра = %d, ожидалось 2", len(hours))
+		t.Errorf("часов завтра = %d, want 2", len(hours))
 	}
 
 	inRange := forecast.HoursInRange(hourAt(23), time.Date(2026, 9, 11, 7, 0, 0, 0, berlinTZ))
 	if len(inRange) != 2 {
-		t.Errorf("часов в интервале = %d, ожидалось 2", len(inRange))
+		t.Errorf("часов в интервале = %d, want 2", len(inRange))
 	}
 	if !inRange[0].Time.Equal(hourAt(23)) {
 		t.Errorf("первый час интервала = %v", inRange[0].Time)

@@ -121,10 +121,10 @@ func TestAnalyzePrecipitationVerdicts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			analysis := AnalyzePrecipitation(buildHours(tc.specs))
 			if analysis.Verdict != tc.want {
-				t.Errorf("вердикт = %v, ожидалось %v", analysis.Verdict, tc.want)
+				t.Errorf("вердикт = %v, want %v", analysis.Verdict, tc.want)
 			}
 			if analysis.Heavy != tc.heavy {
-				t.Errorf("сильный дождь = %v, ожидалось %v", analysis.Heavy, tc.heavy)
+				t.Errorf("сильный дождь = %v, want %v", analysis.Heavy, tc.heavy)
 			}
 		})
 	}
@@ -198,7 +198,7 @@ func TestAnalyzePrecipitationWindows(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			analysis := AnalyzePrecipitation(buildHours(tc.specs))
 			if got := windowHours(analysis.Windows); got != tc.want {
-				t.Errorf("окна = %q, ожидалось %q", got, tc.want)
+				t.Errorf("окна = %q, want %q", got, tc.want)
 			}
 		})
 	}
@@ -212,7 +212,7 @@ func TestAnalyzePrecipitationGapInDataBreaksWindow(t *testing.T) {
 	}
 	analysis := AnalyzePrecipitation(hours)
 	if got := windowHours(analysis.Windows); got != "14,16" {
-		t.Errorf("окна = %q, ожидалось «14,16»", got)
+		t.Errorf("окна = %q, want «14,16»", got)
 	}
 }
 
@@ -238,13 +238,13 @@ func TestAnalyzePrecipitationHazards(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			analysis := AnalyzePrecipitation(buildHours(tc.specs))
 			if analysis.Thunderstorm != tc.thunder {
-				t.Errorf("гроза = %v, ожидалось %v", analysis.Thunderstorm, tc.thunder)
+				t.Errorf("гроза = %v, want %v", analysis.Thunderstorm, tc.thunder)
 			}
 			if analysis.Freezing != tc.freeze {
-				t.Errorf("гололёд = %v, ожидалось %v", analysis.Freezing, tc.freeze)
+				t.Errorf("гололёд = %v, want %v", analysis.Freezing, tc.freeze)
 			}
 			if analysis.Snow != tc.snow {
-				t.Errorf("снег = %v, ожидалось %v", analysis.Snow, tc.snow)
+				t.Errorf("снег = %v, want %v", analysis.Snow, tc.snow)
 			}
 		})
 	}
@@ -258,13 +258,13 @@ func TestAnalyzePrecipitationTotals(t *testing.T) {
 	}))
 
 	if analysis.TotalMM < 1.99 || analysis.TotalMM > 2.01 {
-		t.Errorf("сумма = %v, ожидалось 2.0", analysis.TotalMM)
+		t.Errorf("сумма = %v, want 2.0", analysis.TotalMM)
 	}
 	if analysis.MaxHourlyMM != 1.6 {
-		t.Errorf("максимум за час = %v, ожидалось 1.6", analysis.MaxHourlyMM)
+		t.Errorf("максимум за час = %v, want 1.6", analysis.MaxHourlyMM)
 	}
 	if probability, ok := analysis.MaxProbability.Get(); !ok || probability != 90 {
-		t.Errorf("максимальная вероятность = %v, %v, ожидалось 90", probability, ok)
+		t.Errorf("максимальная вероятность = %v, %v, want 90", probability, ok)
 	}
 }
 
@@ -274,13 +274,13 @@ func TestAnalyzePrecipitationMissingValues(t *testing.T) {
 		{Time: hourAt(8), PrecipitationProbability: None[int](), PrecipitationMM: None[float64]()},
 	})
 	if analysis.Verdict != RainNotNeeded {
-		t.Errorf("вердикт = %v, ожидалось «не нужно»", analysis.Verdict)
+		t.Errorf("вердикт = %v, want «не нужно»", analysis.Verdict)
 	}
 	if analysis.MaxProbability.Valid() {
 		t.Error("максимальная вероятность должна быть пустой")
 	}
 	if len(analysis.Windows) != 0 {
-		t.Errorf("окон = %d, ожидалось 0", len(analysis.Windows))
+		t.Errorf("окон = %d, want 0", len(analysis.Windows))
 	}
 }
 
@@ -321,7 +321,7 @@ func TestUmbrellaUseless(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			analysis := PrecipitationAnalysis{Verdict: tc.verdict}
 			if got := analysis.UmbrellaUseless(tc.wind); got != tc.expected {
-				t.Errorf("UmbrellaUseless = %v, ожидалось %v", got, tc.expected)
+				t.Errorf("UmbrellaUseless = %v, want %v", got, tc.expected)
 			}
 		})
 	}

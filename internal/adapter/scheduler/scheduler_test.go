@@ -61,17 +61,17 @@ func TestRunSendsImmediatelyThenOnEveryTick(t *testing.T) {
 	})
 
 	if err := scheduler.Run(ctx); err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if sender.count() != 3 {
-		t.Errorf("проверок = %d, ожидалось 3 (старт и два тика)", sender.count())
+		t.Errorf("проверок = %d, want 3 (старт и два тика)", sender.count())
 	}
 	if delays[0] != 30*time.Second {
-		t.Errorf("первая задержка = %v, ожидалось 30 s до ровной минуты", delays[0])
+		t.Errorf("первая задержка = %v, want 30 s до ровной минуты", delays[0])
 	}
 	if delays[1] != time.Minute {
-		t.Errorf("вторая задержка = %v, ожидалась минута", delays[1])
+		t.Errorf("вторая задержка = %v, want минута", delays[1])
 	}
 }
 
@@ -95,10 +95,10 @@ func TestRunKeepsGoingAfterSenderError(t *testing.T) {
 	})
 
 	if err := scheduler.Run(context.Background()); err != nil {
-		t.Fatalf("ошибка отправки не должна останавливать планировщик: %v", err)
+		t.Fatalf("a send error must not stop the scheduler: %v", err)
 	}
 	if sender.count() != 2 {
-		t.Errorf("проверок = %d, ожидалось 2", sender.count())
+		t.Errorf("проверок = %d, want 2", sender.count())
 	}
 }
 
@@ -119,10 +119,10 @@ func TestRunStopsOnCancelledContext(t *testing.T) {
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Errorf("ошибка = %v, ожидался выход без ошибки", err)
+			t.Errorf("ошибка = %v, want a clean exit", err)
 		}
 	case <-time.After(2 * time.Second):
-		t.Fatal("планировщик не остановился по отмене контекста")
+		t.Fatal("the scheduler did not stop on a cancelled context")
 	}
 }
 
@@ -140,7 +140,7 @@ func TestUntilNextTick(t *testing.T) {
 
 	for _, tc := range tests {
 		if got := untilNextTick(tc.now, tc.interval); got != tc.want {
-			t.Errorf("untilNextTick(%v, %v) = %v, ожидалось %v", tc.now, tc.interval, got, tc.want)
+			t.Errorf("untilNextTick(%v, %v) = %v, want %v", tc.now, tc.interval, got, tc.want)
 		}
 	}
 }
@@ -149,6 +149,6 @@ func TestSleepContextRespectsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := sleepContext(ctx, time.Hour); !errors.Is(err, context.Canceled) {
-		t.Errorf("ошибка = %v, ожидалась отмена", err)
+		t.Errorf("ошибка = %v, expected a cancellation", err)
 	}
 }

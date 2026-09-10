@@ -28,14 +28,14 @@ func TestParse(t *testing.T) {
 
 	for _, tc := range tests {
 		if got := Parse(tc.code); got != tc.want {
-			t.Errorf("Parse(%q) = %q, ожидалось %q", tc.code, got, tc.want)
+			t.Errorf("Parse(%q) = %q, want %q", tc.code, got, tc.want)
 		}
 	}
 }
 
 func TestDefaultIsEnglish(t *testing.T) {
 	if Default != English {
-		t.Errorf("язык по умолчанию = %q, ожидался английский", Default)
+		t.Errorf("язык по умолчанию = %q, want английский", Default)
 	}
 }
 
@@ -94,7 +94,7 @@ func TestWeekdayAndMonth(t *testing.T) {
 	}
 	for lang, want := range tests {
 		if got := For(lang).Date(date); got != want {
-			t.Errorf("%q: дата = %q, ожидалось %q", lang, got, want)
+			t.Errorf("%q: дата = %q, want %q", lang, got, want)
 		}
 	}
 }
@@ -121,7 +121,7 @@ func TestCondition(t *testing.T) {
 	tests := map[Lang]string{English: "thunderstorm", Russian: "гроза", German: "Gewitter"}
 	for lang, want := range tests {
 		if got := For(lang).Condition(condition); got != want {
-			t.Errorf("%q: описание = %q, ожидалось %q", lang, got, want)
+			t.Errorf("%q: описание = %q, want %q", lang, got, want)
 		}
 	}
 
@@ -155,7 +155,7 @@ func TestRainWindows(t *testing.T) {
 		t.Errorf("два окна = %q", got)
 	}
 	if For(Russian).RainWindows(nil) != "" {
-		t.Error("без окон ожидалась пустая строка")
+		t.Error("без окон want пустая строка")
 	}
 }
 
@@ -193,7 +193,7 @@ func TestAdviceUsesConfiguredUnit(t *testing.T) {
 		{Kind: domain.AdviceWindproofGusts, WindLevel: domain.WindStrong, SpeedMS: domain.Some(16.0)},
 	}}
 	if got := For(English).AdviceText(advice, domain.WindUnitKMH); !strings.Contains(got, "58") {
-		t.Errorf("в км/ч ожидалось 58: %q", got)
+		t.Errorf("в км/ч want 58: %q", got)
 	}
 }
 
@@ -221,7 +221,7 @@ func TestHeadline(t *testing.T) {
 
 	for _, tc := range tests {
 		if got := For(tc.lang).Headline(tc.headline); got != tc.want {
-			t.Errorf("%q: строка = %q, ожидалось %q", tc.lang, got, tc.want)
+			t.Errorf("%q: строка = %q, want %q", tc.lang, got, tc.want)
 		}
 	}
 }
@@ -229,10 +229,10 @@ func TestHeadline(t *testing.T) {
 func TestTemperature(t *testing.T) {
 	printer := For(English)
 	if got := printer.Temperature(domain.Some(13.6)); got != "14°" {
-		t.Errorf("температура = %q, ожидалось 14°", got)
+		t.Errorf("температура = %q, want 14°", got)
 	}
 	if got := printer.Temperature(domain.Some(-0.2)); got != "0°" {
-		t.Errorf("температура = %q, ожидалось 0° без минуса", got)
+		t.Errorf("температура = %q, want 0° без минуса", got)
 	}
 	if got := printer.Temperature(domain.None[float64]()); got != Missing {
 		t.Errorf("отсутствующая температура = %q", got)
@@ -253,7 +253,7 @@ func TestNumber(t *testing.T) {
 	}
 	for _, tc := range tests {
 		if got := Number(tc.value, tc.decimals); got != tc.want {
-			t.Errorf("Number(%v, %d) = %q, ожидалось %q", tc.value, tc.decimals, got, tc.want)
+			t.Errorf("Number(%v, %d) = %q, want %q", tc.value, tc.decimals, got, tc.want)
 		}
 	}
 }

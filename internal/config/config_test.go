@@ -20,11 +20,11 @@ func envMap(overrides map[string]string) Getenv {
 func TestLoadDefaults(t *testing.T) {
 	cfg, err := Load(envMap(nil))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if cfg.DefaultPlace.Name != "Дрезден" {
-		t.Errorf("город = %q, ожидалось Дрезден", cfg.DefaultPlace.Name)
+		t.Errorf("город = %q, want Дрезден", cfg.DefaultPlace.Name)
 	}
 	if cfg.DefaultPlace.Latitude != 51.05 || cfg.DefaultPlace.Longitude != 13.74 {
 		t.Errorf("координаты = %v, %v", cfg.DefaultPlace.Latitude, cfg.DefaultPlace.Longitude)
@@ -52,7 +52,7 @@ func TestLoadDefaults(t *testing.T) {
 func TestLoadOpenModeByDefault(t *testing.T) {
 	cfg, err := Load(envMap(nil))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if cfg.Private() {
 		t.Error("без списка chat_id бот должен быть открыт для всех")
@@ -71,13 +71,13 @@ func TestLoadPrivateMode(t *testing.T) {
 		"TELEGRAM_ADMIN_CHAT_IDS":   "111",
 	}))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !cfg.Private() {
 		t.Error("со списком chat_id бот должен быть приватным")
 	}
 	if len(cfg.AllowedChatIDs) != 2 {
-		t.Errorf("разрешённых chat_id = %v, ожидалось два уникальных", cfg.AllowedChatIDs)
+		t.Errorf("разрешённых chat_id = %v, want two unique values", cfg.AllowedChatIDs)
 	}
 	if !cfg.Allows(111) || !cfg.Allows(222) || cfg.Allows(333) {
 		t.Error("проверка whitelist работает неверно")
@@ -90,7 +90,7 @@ func TestLoadPrivateMode(t *testing.T) {
 func TestLoadNegativeChatID(t *testing.T) {
 	cfg, err := Load(envMap(map[string]string{"TELEGRAM_ALLOWED_CHAT_IDS": "-1001234567890"}))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !cfg.Allows(-1001234567890) {
 		t.Error("отрицательный chat_id группы должен разбираться")
@@ -124,7 +124,7 @@ func TestLoadInvalidValues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := Load(envMap(tc.env))
 			if err == nil {
-				t.Fatal("ожидалась ошибка, её нет")
+				t.Fatal("expected an error, got none")
 			}
 			if !strings.Contains(err.Error(), tc.mustSay) {
 				t.Errorf("ошибка %q не упоминает %q", err, tc.mustSay)
@@ -140,7 +140,7 @@ func TestLoadReportsAllProblemsAtOnce(t *testing.T) {
 		"ACTIVE_HOURS":       "22-07",
 	}))
 	if err == nil {
-		t.Fatal("ожидалась ошибка, её нет")
+		t.Fatal("expected an error, got none")
 	}
 	for _, want := range []string{"TELEGRAM_BOT_TOKEN", "WIND_UNIT", "ACTIVE_HOURS"} {
 		if !strings.Contains(err.Error(), want) {
@@ -160,7 +160,7 @@ func TestNewSubscriberUsesDefaults(t *testing.T) {
 		"WIND_UNIT":     "kmh",
 	}))
 	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	now := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
