@@ -21,23 +21,26 @@
 ## 2. Подготовка сервера
 
 Если на этой машине уже развёрнуты другие проекты, шаг можно пропустить:
-пользователь `deploy`, Docker и ufw уже настроены. Для чистого сервера:
+пользователь, Docker и ufw уже настроены. Дальше по тексту `SERVER_USER` это
+тот же аккаунт, под которым разворачиваются остальные проекты. Узнать его
+можно так: в чьём домашнем каталоге лежат клоны, тот и нужен.
 
 ```bash
-ssh root@SERVER_IP
+ssh SERVER_USER@SERVER_IP "whoami; ls -d ~/*/ | head"
+```
 
-adduser deploy
-usermod -aG sudo deploy
+На чистом сервере (от `root`):
 
+```bash
 apt update && apt install -y ufw unattended-upgrades
 ufw allow OpenSSH
 ufw enable                      # 80 и 443 этому боту не нужны
 
 curl -fsSL https://get.docker.com | sh
-usermod -aG docker deploy
+usermod -aG docker SERVER_USER
 ```
 
-Дальше всё от имени `deploy`, не `root`.
+Дальше всё от имени `SERVER_USER`, не `root`.
 
 ## 3. Деплой-ключ: сервер читает GitHub
 
@@ -46,7 +49,7 @@ usermod -aG docker deploy
 добавь тот же публичный ключ в deploy keys этого репозитория.
 
 ```bash
-# на сервере, от deploy
+# на сервере, от SERVER_USER
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -C "weatherfit-server" -N ""
 cat ~/.ssh/id_ed25519.pub
 ```
@@ -98,7 +101,7 @@ Settings → Secrets and variables → Actions → New repository secret:
 | Секрет | Значение |
 |---|---|
 | `DEPLOY_HOST` | IP сервера |
-| `DEPLOY_USER` | `deploy` |
+| `DEPLOY_USER` | `SERVER_USER`, тот же аккаунт, что в секретах cv-tailor и lexora |
 | `DEPLOY_SSH_KEY` | **приватная** половина ключа, который принимает сервер |
 
 Ключ лучше отдельный, а не личный. Если для другого проекта на этом сервере
@@ -107,14 +110,14 @@ Settings → Secrets and variables → Actions → New repository secret:
 ```bash
 # на своей машине
 ssh-keygen -t ed25519 -f ~/.ssh/weatherfit-deploy -C "github-actions" -N ""
-ssh-copy-id -i ~/.ssh/weatherfit-deploy.pub deploy@SERVER_IP
+ssh-copy-id -i ~/.ssh/weatherfit-deploy.pub SERVER_USER@SERVER_IP
 cat ~/.ssh/weatherfit-deploy        # это целиком в DEPLOY_SSH_KEY
 ```
 
 Проверить до того, как полагаться на воркфлоу:
 
 ```bash
-ssh -i ~/.ssh/weatherfit-deploy deploy@SERVER_IP "cd ~/weatherfit && git status"
+ssh -i ~/.ssh/weatherfit-deploy SERVER_USER@SERVER_IP "cd ~/weatherfit && git status"
 ```
 
 ## 7. Что делает CI и Deploy
@@ -179,6 +182,7 @@ docker compose start
 | «Не удалось получить прогноз» | Open-Meteo недоступен; бот сам ретраит 5 раз за ~15 минут |
 | Контейнер перезапускается | `docker inspect -f '{{.RestartCount}}' weatherbot`, потом логи: обычно битый токен или недоступный том |
 | Deploy пропущен | коммит не начинается с `feat:`/`fix:`, либо CI упал; есть кнопка **Run workflow** |
+| Deploy падает на SSH | `DEPLOY_USER` не совпадает с реальным аккаунтом сервера, либо `~/weatherfit` лежит в домашнем каталоге другого пользователя |
 
 ## Без Docker
 
