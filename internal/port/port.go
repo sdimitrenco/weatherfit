@@ -3,14 +3,56 @@ package port
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/sdimitrenco/weatherfit/internal/domain"
 )
 
-// ForecastProvider отдаёт прогноз для точки, заданной при создании адаптера.
+// ForecastRequest — что именно запрашивается у провайдера прогноза.
+type ForecastRequest struct {
+	Place    domain.Location
+	Timezone *time.Location
+	Days     int
+}
+
+// ForecastProvider отдаёт прогноз для точки.
 type ForecastProvider interface {
-	Forecast(ctx context.Context, days int) (domain.Forecast, error)
+	Forecast(ctx context.Context, request ForecastRequest) (domain.Forecast, error)
+}
+
+// SubscriberStore хранит подписчиков и их настройки.
+type SubscriberStore interface {
+	Save(ctx context.Context, subscriber domain.Subscriber) error
+	Get(ctx context.Context, chatID int64) (domain.Subscriber, error)
+	All(ctx context.Context) ([]domain.Subscriber, error)
+	Delete(ctx context.Context, chatID int64) error
+	MarkSent(ctx context.Context, chatID int64, date string) error
+	SetPending(ctx context.Context, chatID int64, pending domain.PendingAction) error
+	Count(ctx context.Context) (int, error)
+}
+
+// ErrSubscriberNotFound возвращается, когда подписчика нет в хранилище.
+var ErrSubscriberNotFound = errors.New("подписчик не найден")
+
+// Place — найденный геокодером населённый пункт.
+type Place struct {
+	Name    string
+	Country string
+	Admin   string
+	TZName  string
+	Place   domain.Location
+}
+
+// Geocoder ищет населённые пункты по названию.
+type Geocoder interface {
+	Search(ctx context.Context, query string, limit int) ([]Place, error)
+}
+
+// TimezoneResolver определяет таймзону по координатам. Нужен для геопозиции,
+// присланной из Telegram, у которой нет названия города.
+type TimezoneResolver interface {
+	ResolveTimezone(ctx context.Context, place domain.Location) (string, error)
 }
 
 // Notifier отправляет готовое сообщение получателю.

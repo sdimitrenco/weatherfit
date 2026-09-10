@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sdimitrenco/weatherfit/internal/domain"
+	"github.com/sdimitrenco/weatherfit/internal/port"
 )
 
 const fixtureDir = "../../../testdata"
@@ -46,26 +47,28 @@ func serveFixture(t *testing.T, name string) (*httptest.Server, *[]*http.Request
 	return server, &seen
 }
 
-func newTestClient(t *testing.T, baseURL, windUnit string) *Client {
+func newTestClient(t *testing.T, baseURL string) *Client {
 	t.Helper()
-	client, err := New(Options{
-		Location:   domain.Location{Name: "Дрезден", Latitude: 51.05, Longitude: 13.74},
-		Timezone:   berlin(t),
-		WindUnit:   windUnit,
+	return New(Options{
 		BaseURL:    baseURL,
 		HTTPClient: &http.Client{Timeout: 2 * time.Second},
 	})
-	if err != nil {
-		t.Fatalf("не удалось создать клиент: %v", err)
+}
+
+func dresden(t *testing.T, days int) port.ForecastRequest {
+	t.Helper()
+	return port.ForecastRequest{
+		Place:    domain.Location{Name: "Дрезден", Latitude: 51.05, Longitude: 13.74},
+		Timezone: berlin(t),
+		Days:     days,
 	}
-	return client
 }
 
 func TestForecastSendsExpectedQuery(t *testing.T) {
 	server, seen := serveFixture(t, "openmeteo_dresden_real.json")
-	client := newTestClient(t, server.URL, WindUnitMS)
+	client := newTestClient(t, server.URL)
 
-	if _, err := client.Forecast(context.Background(), 2); err != nil {
+	if _, err := client.Forecast(context.Background(), dresden(t, 2)); err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
 
@@ -105,9 +108,9 @@ func TestForecastSendsExpectedQuery(t *testing.T) {
 
 func TestForecastMapsRealFixture(t *testing.T) {
 	server, _ := serveFixture(t, "openmeteo_dresden_real.json")
-	client := newTestClient(t, server.URL, WindUnitMS)
+	client := newTestClient(t, server.URL)
 
-	forecast, err := client.Forecast(context.Background(), 2)
+	forecast, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
@@ -163,32 +166,55 @@ func TestForecastMapsRealFixture(t *testing.T) {
 	}
 }
 
-func TestForecastConvertsKmhToMetersPerSecond(t *testing.T) {
-	server, seen := serveFixture(t, "openmeteo_dresden_real.json")
-	client := newTestClient(t, server.URL, WindUnitKMH)
+func TestForecastMapsCurrentBlock(t *testing.T) {
+	server, _ := serveFixture(t, "openmeteo_dresden_real.json")
+	client := newTestClient(t, server.URL)
 
-	forecast, err := client.Forecast(context.Background(), 2)
+	forecast, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
-	if got := (*seen)[0].URL.Query().Get("wind_speed_unit"); got != "kmh" {
-		t.Errorf("wind_speed_unit = %q, ожидалось kmh", got)
-	}
 
-	speed, ok := forecast.Hours[7].WindSpeedMS.Get()
+	current, ok := forecast.Current.Get()
 	if !ok {
-		t.Fatal("скорость ветра пуста")
+		t.Fatal("блок current пуст")
 	}
-	if want := 2.45 / 3.6; speed != want {
-		t.Errorf("скорость = %v, ожидалось %v (2.45 км/ч в м/с)", speed, want)
+	if current.Time.Location().String() != "Europe/Berlin" {
+		t.Errorf("таймзона current = %q", current.Time.Location())
+	}
+	if temperature, has := current.TemperatureC.Get(); !has || temperature != 15.7 {
+		t.Errorf("температура сейчас = %v, %v, ожидалось 15.7", temperature, has)
+	}
+	if humidity, has := current.RelativeHumidity.Get(); !has || humidity != 68 {
+		t.Errorf("влажность = %v, %v, ожидалось 68", humidity, has)
+	}
+	if isDay, has := current.IsDay.Get(); !has || !isDay {
+		t.Errorf("is_day = %v, %v, ожидался день", isDay, has)
+	}
+}
+
+func TestForecastAlwaysRequestsMetersPerSecond(t *testing.T) {
+	server, seen := serveFixture(t, "openmeteo_dresden_real.json")
+	client := newTestClient(t, server.URL)
+
+	if _, err := client.Forecast(context.Background(), dresden(t, 2)); err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if got := (*seen)[0].URL.Query().Get("wind_speed_unit"); got != "ms" {
+		t.Errorf("wind_speed_unit = %q, ожидалось ms: домен всегда хранит м/с", got)
+	}
+	for _, variable := range currentVariables {
+		if !strings.Contains((*seen)[0].URL.Query().Get("current"), variable) {
+			t.Errorf("в current нет %q", variable)
+		}
 	}
 }
 
 func TestForecastKeepsMissingValuesEmpty(t *testing.T) {
 	server, _ := serveFixture(t, "openmeteo_nulls.json")
-	client := newTestClient(t, server.URL, WindUnitMS)
+	client := newTestClient(t, server.URL)
 
-	forecast, err := client.Forecast(context.Background(), 1)
+	forecast, err := client.Forecast(context.Background(), dresden(t, 1))
 	if err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
@@ -227,8 +253,8 @@ func TestForecastAPIError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := newTestClient(t, server.URL, WindUnitMS)
-	_, err := client.Forecast(context.Background(), 2)
+	client := newTestClient(t, server.URL)
+	_, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err == nil {
 		t.Fatal("ожидалась ошибка, её нет")
 	}
@@ -244,8 +270,8 @@ func TestForecastServerErrorWithoutReason(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := newTestClient(t, server.URL, WindUnitMS)
-	_, err := client.Forecast(context.Background(), 2)
+	client := newTestClient(t, server.URL)
+	_, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err == nil || !strings.Contains(err.Error(), "502") {
 		t.Errorf("ошибка = %v, ожидалось упоминание 502", err)
 	}
@@ -257,8 +283,8 @@ func TestForecastBrokenJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := newTestClient(t, server.URL, WindUnitMS)
-	if _, err := client.Forecast(context.Background(), 2); err == nil {
+	client := newTestClient(t, server.URL)
+	if _, err := client.Forecast(context.Background(), dresden(t, 2)); err == nil {
 		t.Fatal("ожидалась ошибка разбора, её нет")
 	}
 }
@@ -269,8 +295,8 @@ func TestForecastEmptyHourlyBlock(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := newTestClient(t, server.URL, WindUnitMS)
-	_, err := client.Forecast(context.Background(), 2)
+	client := newTestClient(t, server.URL)
+	_, err := client.Forecast(context.Background(), dresden(t, 2))
 	if err == nil || !strings.Contains(err.Error(), "нет почасовых данных") {
 		t.Errorf("ошибка = %v, ожидалось сообщение о пустых данных", err)
 	}
@@ -282,39 +308,78 @@ func TestForecastRespectsContextCancellation(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := newTestClient(t, server.URL, WindUnitMS)
+	client := newTestClient(t, server.URL)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	if _, err := client.Forecast(ctx, 2); err == nil {
+	if _, err := client.Forecast(ctx, dresden(t, 2)); err == nil {
 		t.Fatal("ожидалась ошибка отменённого контекста, её нет")
 	}
 }
 
 func TestForecastRejectsBadArguments(t *testing.T) {
-	client := newTestClient(t, "http://example.invalid", WindUnitMS)
+	client := newTestClient(t, "http://example.invalid")
 	for _, days := range []int{0, -1, 17} {
-		if _, err := client.Forecast(context.Background(), days); err == nil {
+		if _, err := client.Forecast(context.Background(), dresden(t, days)); err == nil {
 			t.Errorf("forecast_days=%d: ожидалась ошибка", days)
 		}
 	}
 }
 
-func TestNewValidatesOptions(t *testing.T) {
-	if _, err := New(Options{Timezone: berlin(t), WindUnit: "mph"}); err == nil {
-		t.Error("ожидалась ошибка для единицы mph")
+func TestNewFillsDefaults(t *testing.T) {
+	client := New(Options{})
+	if client.baseURL != DefaultBaseURL {
+		t.Errorf("базовый URL = %q", client.baseURL)
 	}
-	if _, err := New(Options{WindUnit: WindUnitMS}); err == nil {
-		t.Error("ожидалась ошибка для пустой таймзоны")
-	}
-	client, err := New(Options{Timezone: berlin(t)})
-	if err != nil {
-		t.Fatalf("неожиданная ошибка: %v", err)
-	}
-	if client.windUnit != WindUnitMS || client.baseURL != DefaultBaseURL {
-		t.Errorf("значения по умолчанию не подставлены: %q, %q", client.windUnit, client.baseURL)
+	if client.userAgent != DefaultUserAgent {
+		t.Errorf("User-Agent = %q", client.userAgent)
 	}
 	if client.httpClient.Timeout != DefaultTimeout {
 		t.Errorf("таймаут = %v, ожидалось %v", client.httpClient.Timeout, DefaultTimeout)
 	}
+}
+
+func TestForecastRejectsBadRequest(t *testing.T) {
+	client := newTestClient(t, "http://example.invalid")
+
+	noTimezone := dresden(t, 2)
+	noTimezone.Timezone = nil
+	if _, err := client.Forecast(context.Background(), noTimezone); err == nil {
+		t.Error("ожидалась ошибка для пустой таймзоны")
+	}
+
+	badPlace := dresden(t, 2)
+	badPlace.Place.Latitude = 100
+	if _, err := client.Forecast(context.Background(), badPlace); err == nil {
+		t.Error("ожидалась ошибка для широты вне диапазона")
+	}
+}
+
+func TestResolveTimezone(t *testing.T) {
+	server, seen := serveFixture(t, "openmeteo_dresden_real.json")
+	client := newTestClient(t, server.URL)
+
+	name, err := client.ResolveTimezone(context.Background(), domain.Location{Latitude: 51.05, Longitude: 13.74})
+	if err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if name != "Europe/Berlin" {
+		t.Errorf("таймзона = %q, ожидалось Europe/Berlin", name)
+	}
+	if got := (*seen)[0].URL.Query().Get("timezone"); got != "auto" {
+		t.Errorf("timezone = %q, ожидалось auto", got)
+	}
+}
+
+func TestResolveTimezoneRejectsBadCoordinates(t *testing.T) {
+	client := newTestClient(t, "http://example.invalid")
+	if _, err := client.ResolveTimezone(context.Background(), domain.Location{Latitude: 100}); err == nil {
+		t.Error("ожидалась ошибка для широты вне диапазона")
+	}
+}
+
+func TestClientImplementsPorts(t *testing.T) {
+	client := New(Options{})
+	var _ port.ForecastProvider = client
+	var _ port.TimezoneResolver = client
 }

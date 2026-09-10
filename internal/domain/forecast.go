@@ -28,6 +28,20 @@ type HourPoint struct {
 	IsDay                    Opt[bool]
 }
 
+// CurrentPoint — фактическая погода на момент запроса.
+type CurrentPoint struct {
+	Time                 time.Time
+	TemperatureC         Opt[float64]
+	ApparentTemperatureC Opt[float64]
+	PrecipitationMM      Opt[float64]
+	WeatherCode          Opt[int]
+	WindSpeedMS          Opt[float64]
+	WindDirectionDeg     Opt[int]
+	WindGustsMS          Opt[float64]
+	RelativeHumidity     Opt[int]
+	IsDay                Opt[bool]
+}
+
 // DaySummary — сводка по календарному дню из daily-блока ответа.
 type DaySummary struct {
 	Date                        time.Time
@@ -49,6 +63,7 @@ type DaySummary struct {
 type Forecast struct {
 	Location Location
 	Timezone *time.Location
+	Current  Opt[CurrentPoint]
 	Days     []DaySummary
 	Hours    []HourPoint
 }

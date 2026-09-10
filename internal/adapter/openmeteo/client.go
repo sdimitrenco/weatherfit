@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sdimitrenco/weatherfit/internal/domain"
+	"github.com/sdimitrenco/weatherfit/internal/port"
 )
 
 const (
@@ -24,11 +25,9 @@ const (
 	// DefaultUserAgent отправляется с каждым запросом.
 	DefaultUserAgent = "weatherfit-bot/1.0 (personal telegram weather bot)"
 
-	// WindUnitMS и WindUnitKMH — поддерживаемые значения wind_speed_unit.
-	WindUnitMS  = "ms"
-	WindUnitKMH = "kmh"
+	// windSpeedUnit — единицы, в которых домен хранит скорость ветра.
+	windSpeedUnit = "ms"
 
-	kmhPerMS      = 3.6
 	maxBodyBytes  = 4 << 20
 	localTimeForm = "2006-01-02T15:04"
 )
@@ -49,6 +48,18 @@ var hourlyVariables = []string{
 	"is_day",
 }
 
+var currentVariables = []string{
+	"temperature_2m",
+	"apparent_temperature",
+	"precipitation",
+	"weather_code",
+	"wind_speed_10m",
+	"wind_direction_10m",
+	"wind_gusts_10m",
+	"relative_humidity_2m",
+	"is_day",
+}
+
 var dailyVariables = []string{
 	"temperature_2m_max",
 	"temperature_2m_min",
@@ -66,36 +77,20 @@ var dailyVariables = []string{
 
 // Options — параметры создания клиента.
 type Options struct {
-	Location   domain.Location
-	Timezone   *time.Location
-	WindUnit   string
 	BaseURL    string
 	UserAgent  string
 	HTTPClient *http.Client
 }
 
-// Client запрашивает прогноз для одной точки.
+// Client запрашивает прогноз в Open-Meteo. Один клиент обслуживает любые точки.
 type Client struct {
-	location   domain.Location
-	timezone   *time.Location
-	windUnit   string
 	baseURL    string
 	userAgent  string
 	httpClient *http.Client
 }
 
-// New создаёт клиент, проверяя обязательные параметры.
-func New(options Options) (*Client, error) {
-	if options.Timezone == nil {
-		return nil, errors.New("openmeteo: не задана таймзона")
-	}
-	switch options.WindUnit {
-	case WindUnitMS, WindUnitKMH:
-	case "":
-		options.WindUnit = WindUnitMS
-	default:
-		return nil, fmt.Errorf("openmeteo: единица ветра %q не поддерживается", options.WindUnit)
-	}
+// New создаёт клиент, подставляя значения по умолчанию.
+func New(options Options) *Client {
 	if options.BaseURL == "" {
 		options.BaseURL = DefaultBaseURL
 	}
@@ -107,27 +102,30 @@ func New(options Options) (*Client, error) {
 	}
 
 	return &Client{
-		location:   options.Location,
-		timezone:   options.Timezone,
-		windUnit:   options.WindUnit,
 		baseURL:    options.BaseURL,
 		userAgent:  options.UserAgent,
 		httpClient: options.HTTPClient,
-	}, nil
+	}
 }
 
-// Forecast запрашивает прогноз на days календарных дней начиная с сегодняшнего.
-func (c *Client) Forecast(ctx context.Context, days int) (domain.Forecast, error) {
-	if days < 1 || days > 16 {
-		return domain.Forecast{}, fmt.Errorf("openmeteo: forecast_days=%d вне диапазона [1, 16]", days)
+// Forecast запрашивает прогноз на request.Days календарных дней начиная с сегодняшнего.
+func (c *Client) Forecast(ctx context.Context, request port.ForecastRequest) (domain.Forecast, error) {
+	if request.Days < 1 || request.Days > 16 {
+		return domain.Forecast{}, fmt.Errorf("openmeteo: forecast_days=%d вне диапазона [1, 16]", request.Days)
+	}
+	if request.Timezone == nil {
+		return domain.Forecast{}, errors.New("openmeteo: не задана таймзона запроса")
+	}
+	if err := request.Place.Validate(); err != nil {
+		return domain.Forecast{}, fmt.Errorf("openmeteo: %w", err)
 	}
 
-	request, err := c.newRequest(ctx, days)
+	httpRequest, err := c.newRequest(ctx, request)
 	if err != nil {
 		return domain.Forecast{}, err
 	}
 
-	httpResponse, err := c.httpClient.Do(request)
+	httpResponse, err := c.httpClient.Do(httpRequest)
 	if err != nil {
 		return domain.Forecast{}, fmt.Errorf("openmeteo: запрос не удался: %w", err)
 	}
@@ -150,26 +148,27 @@ func (c *Client) Forecast(ctx context.Context, days int) (domain.Forecast, error
 		return domain.Forecast{}, fmt.Errorf("openmeteo: не удалось разобрать ответ: %w", err)
 	}
 
-	return c.toDomain(parsed)
+	return toDomain(parsed, request)
 }
 
-func (c *Client) newRequest(ctx context.Context, days int) (*http.Request, error) {
+func (c *Client) newRequest(ctx context.Context, request port.ForecastRequest) (*http.Request, error) {
 	query := url.Values{}
-	query.Set("latitude", strconv.FormatFloat(c.location.Latitude, 'f', -1, 64))
-	query.Set("longitude", strconv.FormatFloat(c.location.Longitude, 'f', -1, 64))
-	query.Set("timezone", c.timezone.String())
-	query.Set("forecast_days", strconv.Itoa(days))
-	query.Set("wind_speed_unit", c.windUnit)
+	query.Set("latitude", strconv.FormatFloat(request.Place.Latitude, 'f', -1, 64))
+	query.Set("longitude", strconv.FormatFloat(request.Place.Longitude, 'f', -1, 64))
+	query.Set("timezone", request.Timezone.String())
+	query.Set("forecast_days", strconv.Itoa(request.Days))
+	query.Set("wind_speed_unit", windSpeedUnit)
+	query.Set("current", strings.Join(currentVariables, ","))
 	query.Set("hourly", strings.Join(hourlyVariables, ","))
 	query.Set("daily", strings.Join(dailyVariables, ","))
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+query.Encode(), nil)
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+query.Encode(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("openmeteo: не удалось собрать запрос: %w", err)
 	}
-	request.Header.Set("User-Agent", c.userAgent)
-	request.Header.Set("Accept", "application/json")
-	return request, nil
+	httpRequest.Header.Set("User-Agent", c.userAgent)
+	httpRequest.Header.Set("Accept", "application/json")
+	return httpRequest, nil
 }
 
 func statusError(status int, body []byte) error {
@@ -178,4 +177,54 @@ func statusError(status int, body []byte) error {
 		return fmt.Errorf("API ответил %d: %s", status, apiError.Reason)
 	}
 	return fmt.Errorf("API ответил %d", status)
+}
+
+// ResolveTimezone определяет имя таймзоны по координатам через timezone=auto.
+func (c *Client) ResolveTimezone(ctx context.Context, place domain.Location) (string, error) {
+	if err := place.Validate(); err != nil {
+		return "", fmt.Errorf("openmeteo: %w", err)
+	}
+
+	query := url.Values{}
+	query.Set("latitude", strconv.FormatFloat(place.Latitude, 'f', -1, 64))
+	query.Set("longitude", strconv.FormatFloat(place.Longitude, 'f', -1, 64))
+	query.Set("timezone", "auto")
+	query.Set("forecast_days", "1")
+	query.Set("current", "temperature_2m")
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+query.Encode(), nil)
+	if err != nil {
+		return "", fmt.Errorf("openmeteo: не удалось собрать запрос: %w", err)
+	}
+	request.Header.Set("User-Agent", c.userAgent)
+	request.Header.Set("Accept", "application/json")
+
+	httpResponse, err := c.httpClient.Do(request)
+	if err != nil {
+		return "", fmt.Errorf("openmeteo: запрос не удался: %w", err)
+	}
+	defer func() {
+		_, _ = io.Copy(io.Discard, httpResponse.Body)
+		_ = httpResponse.Body.Close()
+	}()
+
+	body, err := io.ReadAll(io.LimitReader(httpResponse.Body, maxBodyBytes))
+	if err != nil {
+		return "", fmt.Errorf("openmeteo: не удалось прочитать ответ: %w", err)
+	}
+	if httpResponse.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("openmeteo: %w", statusError(httpResponse.StatusCode, body))
+	}
+
+	var parsed response
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return "", fmt.Errorf("openmeteo: не удалось разобрать ответ: %w", err)
+	}
+	if parsed.Timezone == "" {
+		return "", errors.New("openmeteo: в ответе нет таймзоны")
+	}
+	if _, err := time.LoadLocation(parsed.Timezone); err != nil {
+		return "", fmt.Errorf("openmeteo: неизвестная таймзона %q", parsed.Timezone)
+	}
+	return parsed.Timezone, nil
 }

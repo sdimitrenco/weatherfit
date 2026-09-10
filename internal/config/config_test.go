@@ -4,13 +4,13 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/sdimitrenco/weatherfit/internal/domain"
 )
 
 func envMap(overrides map[string]string) Getenv {
-	base := map[string]string{
-		"TELEGRAM_BOT_TOKEN":        "123:ABC",
-		"TELEGRAM_ALLOWED_CHAT_IDS": "111",
-	}
+	base := map[string]string{"TELEGRAM_BOT_TOKEN": "123:ABC"}
 	for key, value := range overrides {
 		base[key] = value
 	}
@@ -23,70 +23,77 @@ func TestLoadDefaults(t *testing.T) {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
 
-	if cfg.LocationName != "Дрезден" {
-		t.Errorf("LocationName = %q, ожидалось Дрезден", cfg.LocationName)
+	if cfg.DefaultPlace.Name != "Дрезден" {
+		t.Errorf("город = %q, ожидалось Дрезден", cfg.DefaultPlace.Name)
 	}
-	if cfg.Latitude != 51.05 || cfg.Longitude != 13.74 {
-		t.Errorf("координаты = %v, %v, ожидалось 51.05, 13.74", cfg.Latitude, cfg.Longitude)
+	if cfg.DefaultPlace.Latitude != 51.05 || cfg.DefaultPlace.Longitude != 13.74 {
+		t.Errorf("координаты = %v, %v", cfg.DefaultPlace.Latitude, cfg.DefaultPlace.Longitude)
 	}
-	if cfg.Location.String() != "Europe/Berlin" {
-		t.Errorf("Location = %q, ожидалось Europe/Berlin", cfg.Location)
+	if cfg.DefaultTimezone.String() != "Europe/Berlin" {
+		t.Errorf("таймзона = %q", cfg.DefaultTimezone)
 	}
-	if cfg.ReportTime.String() != "07:00" {
-		t.Errorf("ReportTime = %q, ожидалось 07:00", cfg.ReportTime)
+	if cfg.DefaultReportTime.String() != "07:00" {
+		t.Errorf("время рассылки = %q", cfg.DefaultReportTime)
 	}
-	if cfg.ActiveHours.String() != "07-22" {
-		t.Errorf("ActiveHours = %q, ожидалось 07-22", cfg.ActiveHours)
+	if cfg.DefaultActiveHours.String() != "07-22" {
+		t.Errorf("активное окно = %q", cfg.DefaultActiveHours)
 	}
-	if cfg.WindUnit != WindUnitMS {
-		t.Errorf("WindUnit = %q, ожидалось ms", cfg.WindUnit)
+	if cfg.DefaultWindUnit != domain.WindUnitMS {
+		t.Errorf("единица ветра = %q", cfg.DefaultWindUnit)
 	}
 	if cfg.LogLevel != slog.LevelInfo {
-		t.Errorf("LogLevel = %v, ожидалось info", cfg.LogLevel)
+		t.Errorf("уровень логов = %v", cfg.LogLevel)
 	}
-	if cfg.StateFile != "data/state.json" {
-		t.Errorf("StateFile = %q, ожидалось data/state.json", cfg.StateFile)
+	if cfg.DatabasePath != "data/weatherfit.db" {
+		t.Errorf("путь к базе = %q", cfg.DatabasePath)
 	}
 }
 
-func TestLoadChatIDs(t *testing.T) {
-	tests := []struct {
-		name  string
-		raw   string
-		want  []int64
-		error bool
-	}{
-		{name: "один", raw: "111", want: []int64{111}},
-		{name: "несколько с пробелами", raw: " 111 , 222 ", want: []int64{111, 222}},
-		{name: "отрицательный id группы", raw: "-1001234567890", want: []int64{-1001234567890}},
-		{name: "дубликаты сворачиваются", raw: "111,111", want: []int64{111}},
-		{name: "висящая запятая", raw: "111,", want: []int64{111}},
-		{name: "пусто", raw: "", error: true},
-		{name: "только запятые", raw: " , ", error: true},
-		{name: "не число", raw: "111,abc", error: true},
+func TestLoadOpenModeByDefault(t *testing.T) {
+	cfg, err := Load(envMap(nil))
+	if err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
 	}
+	if cfg.Private() {
+		t.Error("без списка chat_id бот должен быть открыт для всех")
+	}
+	if !cfg.Allows(999) {
+		t.Error("в открытом режиме разрешён любой chat_id")
+	}
+	if cfg.Admin(999) {
+		t.Error("без списка админов админов быть не должно")
+	}
+}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg, err := Load(envMap(map[string]string{"TELEGRAM_ALLOWED_CHAT_IDS": tc.raw}))
-			if tc.error {
-				if err == nil {
-					t.Fatal("ожидалась ошибка, её нет")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("неожиданная ошибка: %v", err)
-			}
-			if len(cfg.AllowedChatIDs) != len(tc.want) {
-				t.Fatalf("AllowedChatIDs = %v, ожидалось %v", cfg.AllowedChatIDs, tc.want)
-			}
-			for i, want := range tc.want {
-				if cfg.AllowedChatIDs[i] != want {
-					t.Errorf("AllowedChatIDs[%d] = %d, ожидалось %d", i, cfg.AllowedChatIDs[i], want)
-				}
-			}
-		})
+func TestLoadPrivateMode(t *testing.T) {
+	cfg, err := Load(envMap(map[string]string{
+		"TELEGRAM_ALLOWED_CHAT_IDS": "111, 222 ,111",
+		"TELEGRAM_ADMIN_CHAT_IDS":   "111",
+	}))
+	if err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if !cfg.Private() {
+		t.Error("со списком chat_id бот должен быть приватным")
+	}
+	if len(cfg.AllowedChatIDs) != 2 {
+		t.Errorf("разрешённых chat_id = %v, ожидалось два уникальных", cfg.AllowedChatIDs)
+	}
+	if !cfg.Allows(111) || !cfg.Allows(222) || cfg.Allows(333) {
+		t.Error("проверка whitelist работает неверно")
+	}
+	if !cfg.Admin(111) || cfg.Admin(222) {
+		t.Error("проверка админов работает неверно")
+	}
+}
+
+func TestLoadNegativeChatID(t *testing.T) {
+	cfg, err := Load(envMap(map[string]string{"TELEGRAM_ALLOWED_CHAT_IDS": "-1001234567890"}))
+	if err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if !cfg.Allows(-1001234567890) {
+		t.Error("отрицательный chat_id группы должен разбираться")
 	}
 }
 
@@ -97,6 +104,8 @@ func TestLoadInvalidValues(t *testing.T) {
 		mustSay string
 	}{
 		{name: "нет токена", env: map[string]string{"TELEGRAM_BOT_TOKEN": ""}, mustSay: "TELEGRAM_BOT_TOKEN"},
+		{name: "chat_id не число", env: map[string]string{"TELEGRAM_ALLOWED_CHAT_IDS": "abc"}, mustSay: "TELEGRAM_ALLOWED_CHAT_IDS"},
+		{name: "админ не число", env: map[string]string{"TELEGRAM_ADMIN_CHAT_IDS": "1,x"}, mustSay: "TELEGRAM_ADMIN_CHAT_IDS"},
 		{name: "широта не число", env: map[string]string{"LOCATION_LAT": "север"}, mustSay: "LOCATION_LAT"},
 		{name: "широта вне диапазона", env: map[string]string{"LOCATION_LAT": "91"}, mustSay: "LOCATION_LAT"},
 		{name: "долгота вне диапазона", env: map[string]string{"LOCATION_LON": "-181"}, mustSay: "LOCATION_LON"},
@@ -140,26 +149,7 @@ func TestLoadReportsAllProblemsAtOnce(t *testing.T) {
 	}
 }
 
-func TestActiveHoursContains(t *testing.T) {
-	window := ActiveHours{Start: 7, End: 22}
-	tests := []struct {
-		hour int
-		want bool
-	}{
-		{hour: 6, want: false},
-		{hour: 7, want: true},
-		{hour: 15, want: true},
-		{hour: 22, want: true},
-		{hour: 23, want: false},
-	}
-	for _, tc := range tests {
-		if got := window.Contains(tc.hour); got != tc.want {
-			t.Errorf("Contains(%d) = %v, ожидалось %v", tc.hour, got, tc.want)
-		}
-	}
-}
-
-func TestLoadOverrides(t *testing.T) {
+func TestNewSubscriberUsesDefaults(t *testing.T) {
 	cfg, err := Load(envMap(map[string]string{
 		"LOCATION_NAME": "Прага",
 		"LOCATION_LAT":  "50.08",
@@ -168,22 +158,30 @@ func TestLoadOverrides(t *testing.T) {
 		"REPORT_TIME":   "06:30",
 		"ACTIVE_HOURS":  "08-20",
 		"WIND_UNIT":     "kmh",
-		"LOG_LEVEL":     "debug",
-		"STATE_FILE":    "/var/lib/weatherbot/state.json",
 	}))
 	if err != nil {
 		t.Fatalf("неожиданная ошибка: %v", err)
 	}
-	if cfg.LocationName != "Прага" || cfg.TZName != "Europe/Prague" {
-		t.Errorf("локация = %q / %q", cfg.LocationName, cfg.TZName)
+
+	now := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
+	subscriber := cfg.NewSubscriber(555, now)
+
+	if subscriber.ChatID != 555 {
+		t.Errorf("chat_id = %d", subscriber.ChatID)
 	}
-	if cfg.ReportTime.String() != "06:30" || cfg.ActiveHours.String() != "08-20" {
-		t.Errorf("время = %q, окно = %q", cfg.ReportTime, cfg.ActiveHours)
+	if subscriber.Place.Name != "Прага" || subscriber.TZName != "Europe/Prague" {
+		t.Errorf("город = %q, таймзона = %q", subscriber.Place.Name, subscriber.TZName)
 	}
-	if cfg.WindUnit != WindUnitKMH || cfg.LogLevel != slog.LevelDebug {
-		t.Errorf("ветер = %q, логи = %v", cfg.WindUnit, cfg.LogLevel)
+	if subscriber.ReportTime.String() != "06:30" || subscriber.ActiveHours.String() != "08-20" {
+		t.Errorf("время = %q, окно = %q", subscriber.ReportTime, subscriber.ActiveHours)
 	}
-	if cfg.StateFile != "/var/lib/weatherbot/state.json" {
-		t.Errorf("StateFile = %q", cfg.StateFile)
+	if subscriber.WindUnit != domain.WindUnitKMH {
+		t.Errorf("единица ветра = %q", subscriber.WindUnit)
+	}
+	if !subscriber.CreatedAt.Equal(now) || !subscriber.UpdatedAt.Equal(now) {
+		t.Error("времена создания и обновления должны быть равны now")
+	}
+	if err := subscriber.Validate(); err != nil {
+		t.Errorf("подписчик по умолчанию не проходит валидацию: %v", err)
 	}
 }

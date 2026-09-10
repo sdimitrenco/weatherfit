@@ -26,14 +26,10 @@ func main() {
 	defer stop()
 
 	log.Info("бот запущен",
-		slog.String("location", cfg.LocationName),
-		slog.Float64("lat", cfg.Latitude),
-		slog.Float64("lon", cfg.Longitude),
-		slog.String("tz", cfg.TZName),
-		slog.String("report_time", cfg.ReportTime.String()),
-		slog.String("active_hours", cfg.ActiveHours.String()),
-		slog.String("wind_unit", string(cfg.WindUnit)),
-		slog.Int("recipients", len(cfg.AllowedChatIDs)),
+		slog.String("default_place", cfg.DefaultPlace.Name),
+		slog.String("default_tz", cfg.DefaultTZName),
+		slog.String("default_report_time", cfg.DefaultReportTime.String()),
+		slog.Bool("private", cfg.Private()),
 	)
 
 	<-ctx.Done()

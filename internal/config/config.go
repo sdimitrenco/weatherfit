@@ -8,14 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-)
 
-// WindUnit — единица измерения скорости ветра.
-type WindUnit string
-
-const (
-	WindUnitMS  WindUnit = "ms"
-	WindUnitKMH WindUnit = "kmh"
+	"github.com/sdimitrenco/weatherfit/internal/domain"
 )
 
 const chatIDsSeparator = ","
@@ -23,47 +17,25 @@ const chatIDsSeparator = ","
 // Getenv читает значение переменной окружения по имени.
 type Getenv func(key string) string
 
-// ActiveHours — активное окно суток, включительно с обеих сторон.
-type ActiveHours struct {
-	Start int
-	End   int
-}
-
-// Contains сообщает, попадает ли час суток в активное окно.
-func (a ActiveHours) Contains(hour int) bool {
-	return hour >= a.Start && hour <= a.End
-}
-
-// String возвращает окно в формате конфига, например "07-22".
-func (a ActiveHours) String() string {
-	return fmt.Sprintf("%02d-%02d", a.Start, a.End)
-}
-
-// ReportTime — время утренней рассылки в локальной таймзоне.
-type ReportTime struct {
-	Hour   int
-	Minute int
-}
-
-// String возвращает время в формате конфига, например "07:00".
-func (r ReportTime) String() string {
-	return fmt.Sprintf("%02d:%02d", r.Hour, r.Minute)
-}
-
-// Config — полная конфигурация приложения.
+// Config — полная конфигурация приложения. Локация, время рассылки и активное
+// окно задают значения по умолчанию для новых подписчиков; дальше каждый
+// подписчик меняет их сам через бота.
 type Config struct {
 	TelegramBotToken string
-	AllowedChatIDs   []int64
-	LocationName     string
-	Latitude         float64
-	Longitude        float64
-	TZName           string
-	Location         *time.Location
-	ReportTime       ReportTime
-	ActiveHours      ActiveHours
-	WindUnit         WindUnit
-	LogLevel         slog.Level
-	StateFile        string
+	// AllowedChatIDs пуст в открытом режиме. Если список задан, бот отвечает
+	// только этим chat_id.
+	AllowedChatIDs []int64
+	AdminChatIDs   []int64
+
+	DefaultPlace       domain.Location
+	DefaultTZName      string
+	DefaultTimezone    *time.Location
+	DefaultReportTime  domain.DayTime
+	DefaultActiveHours domain.HourWindow
+	DefaultWindUnit    domain.WindUnit
+
+	DatabasePath string
+	LogLevel     slog.Level
 }
 
 const (
@@ -75,7 +47,7 @@ const (
 	defaultActiveHours  = "07-22"
 	defaultWindUnit     = "ms"
 	defaultLogLevel     = "info"
-	defaultStateFile    = "data/state.json"
+	defaultDatabasePath = "data/weatherfit.db"
 )
 
 // Load собирает конфигурацию, подставляя значения по умолчанию, и возвращает
@@ -88,47 +60,51 @@ func Load(getenv Getenv) (*Config, error) {
 
 	cfg := &Config{
 		TelegramBotToken: strings.TrimSpace(getenv("TELEGRAM_BOT_TOKEN")),
-		LocationName:     valueOr(getenv("LOCATION_NAME"), defaultLocationName),
-		TZName:           valueOr(getenv("TZ_NAME"), defaultTZName),
-		StateFile:        valueOr(getenv("STATE_FILE"), defaultStateFile),
+		DefaultTZName:    valueOr(getenv("TZ_NAME"), defaultTZName),
+		DatabasePath:     valueOr(getenv("DB_PATH"), defaultDatabasePath),
 	}
 
 	if cfg.TelegramBotToken == "" {
 		fail("TELEGRAM_BOT_TOKEN: обязательная переменная не задана")
 	}
 
-	chatIDs, err := parseChatIDs(valueOr(getenv("TELEGRAM_ALLOWED_CHAT_IDS"), ""))
+	var err error
+	cfg.AllowedChatIDs, err = parseChatIDs(getenv("TELEGRAM_ALLOWED_CHAT_IDS"))
 	if err != nil {
 		fail("TELEGRAM_ALLOWED_CHAT_IDS: %w", err)
 	}
-	cfg.AllowedChatIDs = chatIDs
 
-	cfg.Latitude, err = parseCoordinate(valueOr(getenv("LOCATION_LAT"), ""), defaultLatitude, 90)
+	cfg.AdminChatIDs, err = parseChatIDs(getenv("TELEGRAM_ADMIN_CHAT_IDS"))
+	if err != nil {
+		fail("TELEGRAM_ADMIN_CHAT_IDS: %w", err)
+	}
+
+	cfg.DefaultPlace.Name = valueOr(getenv("LOCATION_NAME"), defaultLocationName)
+	cfg.DefaultPlace.Latitude, err = parseCoordinate(getenv("LOCATION_LAT"), defaultLatitude, 90)
 	if err != nil {
 		fail("LOCATION_LAT: %w", err)
 	}
-
-	cfg.Longitude, err = parseCoordinate(valueOr(getenv("LOCATION_LON"), ""), defaultLongitude, 180)
+	cfg.DefaultPlace.Longitude, err = parseCoordinate(getenv("LOCATION_LON"), defaultLongitude, 180)
 	if err != nil {
 		fail("LOCATION_LON: %w", err)
 	}
 
-	cfg.Location, err = time.LoadLocation(cfg.TZName)
+	cfg.DefaultTimezone, err = time.LoadLocation(cfg.DefaultTZName)
 	if err != nil {
-		fail("TZ_NAME: неизвестная таймзона %q", cfg.TZName)
+		fail("TZ_NAME: неизвестная таймзона %q", cfg.DefaultTZName)
 	}
 
-	cfg.ReportTime, err = parseReportTime(valueOr(getenv("REPORT_TIME"), defaultReportTime))
+	cfg.DefaultReportTime, err = domain.ParseDayTime(valueOr(getenv("REPORT_TIME"), defaultReportTime))
 	if err != nil {
 		fail("REPORT_TIME: %w", err)
 	}
 
-	cfg.ActiveHours, err = parseActiveHours(valueOr(getenv("ACTIVE_HOURS"), defaultActiveHours))
+	cfg.DefaultActiveHours, err = domain.ParseHourWindow(valueOr(getenv("ACTIVE_HOURS"), defaultActiveHours))
 	if err != nil {
 		fail("ACTIVE_HOURS: %w", err)
 	}
 
-	cfg.WindUnit, err = parseWindUnit(valueOr(getenv("WIND_UNIT"), defaultWindUnit))
+	cfg.DefaultWindUnit, err = domain.ParseWindUnit(valueOr(getenv("WIND_UNIT"), defaultWindUnit))
 	if err != nil {
 		fail("WIND_UNIT: %w", err)
 	}
@@ -144,6 +120,47 @@ func Load(getenv Getenv) (*Config, error) {
 	return cfg, nil
 }
 
+// Private сообщает, что бот работает по списку разрешённых chat_id.
+func (c *Config) Private() bool {
+	return len(c.AllowedChatIDs) > 0
+}
+
+// Allows сообщает, разрешено ли этому chat_id пользоваться ботом.
+func (c *Config) Allows(chatID int64) bool {
+	if !c.Private() {
+		return true
+	}
+	return contains(c.AllowedChatIDs, chatID)
+}
+
+// Admin сообщает, что chat_id указан в списке администраторов.
+func (c *Config) Admin(chatID int64) bool {
+	return contains(c.AdminChatIDs, chatID)
+}
+
+// NewSubscriber создаёт подписчика с настройками по умолчанию.
+func (c *Config) NewSubscriber(chatID int64, now time.Time) domain.Subscriber {
+	return domain.Subscriber{
+		ChatID:      chatID,
+		Place:       c.DefaultPlace,
+		TZName:      c.DefaultTZName,
+		ReportTime:  c.DefaultReportTime,
+		ActiveHours: c.DefaultActiveHours,
+		WindUnit:    c.DefaultWindUnit,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+}
+
+func contains(ids []int64, id int64) bool {
+	for _, current := range ids {
+		if current == id {
+			return true
+		}
+	}
+	return false
+}
+
 func valueOr(value, fallback string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -153,8 +170,9 @@ func valueOr(value, fallback string) string {
 }
 
 func parseChatIDs(raw string) ([]int64, error) {
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return nil, errors.New("обязательная переменная не задана, укажи свой chat_id")
+		return nil, nil
 	}
 
 	parts := strings.Split(raw, chatIDsSeparator)
@@ -175,13 +193,11 @@ func parseChatIDs(raw string) ([]int64, error) {
 		seen[id] = struct{}{}
 		ids = append(ids, id)
 	}
-	if len(ids) == 0 {
-		return nil, errors.New("список пуст, укажи хотя бы один chat_id")
-	}
 	return ids, nil
 }
 
 func parseCoordinate(raw string, fallback, limit float64) (float64, error) {
+	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return fallback, nil
 	}
@@ -193,63 +209,6 @@ func parseCoordinate(raw string, fallback, limit float64) (float64, error) {
 		return 0, fmt.Errorf("значение %v вне диапазона [-%v, %v]", value, limit, limit)
 	}
 	return value, nil
-}
-
-func parseReportTime(raw string) (ReportTime, error) {
-	hour, minute, found := strings.Cut(raw, ":")
-	if !found {
-		return ReportTime{}, fmt.Errorf("%q не похоже на время, ожидается формат ЧЧ:ММ", raw)
-	}
-	h, err := parseBoundedInt(hour, 0, 23)
-	if err != nil {
-		return ReportTime{}, fmt.Errorf("час: %w", err)
-	}
-	m, err := parseBoundedInt(minute, 0, 59)
-	if err != nil {
-		return ReportTime{}, fmt.Errorf("минуты: %w", err)
-	}
-	return ReportTime{Hour: h, Minute: m}, nil
-}
-
-func parseActiveHours(raw string) (ActiveHours, error) {
-	start, end, found := strings.Cut(raw, "-")
-	if !found {
-		return ActiveHours{}, fmt.Errorf("%q не похоже на окно часов, ожидается формат ЧЧ-ЧЧ", raw)
-	}
-	from, err := parseBoundedInt(start, 0, 23)
-	if err != nil {
-		return ActiveHours{}, fmt.Errorf("начало окна: %w", err)
-	}
-	to, err := parseBoundedInt(end, 0, 23)
-	if err != nil {
-		return ActiveHours{}, fmt.Errorf("конец окна: %w", err)
-	}
-	if from > to {
-		return ActiveHours{}, fmt.Errorf("начало окна %02d позже конца %02d", from, to)
-	}
-	return ActiveHours{Start: from, End: to}, nil
-}
-
-func parseBoundedInt(raw string, minValue, maxValue int) (int, error) {
-	value, err := strconv.Atoi(strings.TrimSpace(raw))
-	if err != nil {
-		return 0, fmt.Errorf("%q не похоже на целое число", raw)
-	}
-	if value < minValue || value > maxValue {
-		return 0, fmt.Errorf("значение %d вне диапазона [%d, %d]", value, minValue, maxValue)
-	}
-	return value, nil
-}
-
-func parseWindUnit(raw string) (WindUnit, error) {
-	switch WindUnit(strings.ToLower(raw)) {
-	case WindUnitMS:
-		return WindUnitMS, nil
-	case WindUnitKMH:
-		return WindUnitKMH, nil
-	default:
-		return "", fmt.Errorf("%q не поддерживается, ожидается ms или kmh", raw)
-	}
 }
 
 func parseLogLevel(raw string) (slog.Level, error) {

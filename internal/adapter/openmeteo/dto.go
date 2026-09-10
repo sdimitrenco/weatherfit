@@ -1,12 +1,26 @@
 package openmeteo
 
 type response struct {
-	Latitude         float64 `json:"latitude"`
-	Longitude        float64 `json:"longitude"`
-	Timezone         string  `json:"timezone"`
-	UTCOffsetSeconds int     `json:"utc_offset_seconds"`
-	Hourly           hourly  `json:"hourly"`
-	Daily            daily   `json:"daily"`
+	Latitude         float64  `json:"latitude"`
+	Longitude        float64  `json:"longitude"`
+	Timezone         string   `json:"timezone"`
+	UTCOffsetSeconds int      `json:"utc_offset_seconds"`
+	Current          *current `json:"current"`
+	Hourly           hourly   `json:"hourly"`
+	Daily            daily    `json:"daily"`
+}
+
+type current struct {
+	Time                string   `json:"time"`
+	Temperature2m       *float64 `json:"temperature_2m"`
+	ApparentTemperature *float64 `json:"apparent_temperature"`
+	Precipitation       *float64 `json:"precipitation"`
+	WeatherCode         *int     `json:"weather_code"`
+	WindSpeed10m        *float64 `json:"wind_speed_10m"`
+	WindDirection10m    *int     `json:"wind_direction_10m"`
+	WindGusts10m        *float64 `json:"wind_gusts_10m"`
+	RelativeHumidity2m  *int     `json:"relative_humidity_2m"`
+	IsDay               *int     `json:"is_day"`
 }
 
 type errorResponse struct {
