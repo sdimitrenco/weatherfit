@@ -145,6 +145,7 @@ var catalogDE = map[Key]string{
 
 	KeyButtonChangeCity:     "🏙 Stadt ändern",
 	KeyButtonChangeTime:     "⏰ Zeit ändern",
+	KeyButtonChangeHours:    "🕗 Aktive Stunden",
 	KeyButtonToggleUnit:     "💨 Windeinheit",
 	KeyButtonChangeLanguage: "🌍 Sprache",
 	KeyButtonPause:          "⏸ Zustellung pausieren",
@@ -159,6 +160,9 @@ var catalogDE = map[Key]string{
 	KeyCitySaved:      "Stadt: <b>%s</b>. Zeitzone: %s.",
 	KeyTimeSaved:      "Morgenbericht um <b>%s</b> (%s).",
 	KeyTimeInvalid:    "Das sieht nicht wie eine Zeit aus. Schick sie als HH:MM, zum Beispiel 07:00.",
+	KeyAskHours:       "Schick die Stunden für den Bericht als HH-HH, zum Beispiel 07-22.",
+	KeyHoursSaved:     "Aktive Stunden: <b>%s</b>.",
+	KeyHoursInvalid:   "Das sieht nicht wie ein Stundenbereich aus. Schick ihn als HH-HH, zum Beispiel 07-22, Beginn vor Ende.",
 	KeyUnitSaved:      "Windeinheit: <b>%s</b>.",
 	KeyLanguageSaved:  "Sprache: %s.",
 	KeyLanguageChoose: "Wähle eine Sprache:",

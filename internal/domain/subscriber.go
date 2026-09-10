@@ -9,9 +9,10 @@ import (
 type PendingAction string
 
 const (
-	PendingNone PendingAction = ""
-	PendingCity PendingAction = "city"
-	PendingTime PendingAction = "time"
+	PendingNone  PendingAction = ""
+	PendingCity  PendingAction = "city"
+	PendingTime  PendingAction = "time"
+	PendingHours PendingAction = "hours"
 )
 
 // Subscriber is a recipient with personal settings.

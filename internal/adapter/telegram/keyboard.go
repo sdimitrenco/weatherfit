@@ -17,6 +17,7 @@ const (
 	commandSettings = "/settings"
 	commandCity     = "/city"
 	commandTime     = "/time"
+	commandHours    = "/hours"
 	commandLanguage = "/language"
 	commandUnits    = "/units"
 	commandPause    = "/pause"
@@ -34,6 +35,7 @@ const (
 	callbackResume   = "resume"
 	callbackAskCity  = "ask_city"
 	callbackAskTime  = "ask_time"
+	callbackAskHours = "ask_hours"
 	callbackLangMenu = "lang_menu"
 	callbackSettings = "settings"
 )
@@ -81,7 +83,10 @@ func settingsKeyboard(printer *i18n.Printer, subscriber domain.Subscriber) *mode
 	return &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{{Text: printer.T(i18n.KeyButtonChangeCity), CallbackData: callbackAskCity}},
-			{{Text: printer.T(i18n.KeyButtonChangeTime), CallbackData: callbackAskTime}},
+			{
+				{Text: printer.T(i18n.KeyButtonChangeTime), CallbackData: callbackAskTime},
+				{Text: printer.T(i18n.KeyButtonChangeHours), CallbackData: callbackAskHours},
+			},
 			{
 				{Text: printer.T(i18n.KeyButtonToggleUnit), CallbackData: callbackUnit},
 				{Text: printer.T(i18n.KeyButtonChangeLanguage), CallbackData: callbackLangMenu},

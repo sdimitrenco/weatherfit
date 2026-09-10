@@ -256,3 +256,30 @@ func TestSetPendingStoresAction(t *testing.T) {
 		t.Errorf("ожидание = %q", subscriber.Pending)
 	}
 }
+
+func TestSetActiveHours(t *testing.T) {
+	store := newMemoryStore(testSubscriber())
+	subscriptions := newSubscriptions(t, store, nil, nil, time.Now())
+
+	updated, err := subscriptions.SetActiveHours(context.Background(), 42, "9-18")
+	if err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if updated.ActiveHours.String() != "09-18" {
+		t.Errorf("активные часы = %q", updated.ActiveHours)
+	}
+	if updated.Pending != domain.PendingNone {
+		t.Errorf("ожидание ввода должно сбрасываться: %q", updated.Pending)
+	}
+
+	for _, raw := range []string{"22-07", "07-24", "0722", "утром", ""} {
+		if _, err := subscriptions.SetActiveHours(context.Background(), 42, raw); err == nil {
+			t.Errorf("%q: ожидалась ошибка", raw)
+		}
+	}
+
+	stored, _ := store.Get(context.Background(), 42)
+	if stored.ActiveHours.String() != "09-18" {
+		t.Errorf("неверный ввод не должен затирать настройку: %q", stored.ActiveHours)
+	}
+}

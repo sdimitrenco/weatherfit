@@ -50,6 +50,7 @@ func commandList(printer *i18n.Printer) string {
 		commandSettings + " — " + printer.T(i18n.KeyButtonSettings),
 		commandCity + " — " + printer.T(i18n.KeyButtonChangeCity),
 		commandTime + " — " + printer.T(i18n.KeyButtonChangeTime),
+		commandHours + " — " + printer.T(i18n.KeyButtonChangeHours),
 		commandUnits + " — " + printer.T(i18n.KeyButtonToggleUnit),
 		commandLanguage + " — " + printer.T(i18n.KeyButtonChangeLanguage),
 		commandStop + " — /stop",

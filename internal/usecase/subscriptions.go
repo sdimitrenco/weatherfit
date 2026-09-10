@@ -146,6 +146,19 @@ func (s *Subscriptions) SetReportTime(ctx context.Context, chatID int64, raw str
 	})
 }
 
+// SetActiveHours parses and stores the window the report covers.
+func (s *Subscriptions) SetActiveHours(ctx context.Context, chatID int64, raw string) (domain.Subscriber, error) {
+	window, err := domain.ParseHourWindow(raw)
+	if err != nil {
+		return domain.Subscriber{}, err
+	}
+
+	return s.update(ctx, chatID, func(subscriber *domain.Subscriber) error {
+		subscriber.ActiveHours = window
+		return nil
+	})
+}
+
 // SetLang stores the interface language.
 func (s *Subscriptions) SetLang(ctx context.Context, chatID int64, lang i18n.Lang) (domain.Subscriber, error) {
 	if !i18n.Valid(lang) {

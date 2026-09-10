@@ -145,6 +145,7 @@ var catalogRU = map[Key]string{
 
 	KeyButtonChangeCity:     "🏙 Сменить город",
 	KeyButtonChangeTime:     "⏰ Сменить время",
+	KeyButtonChangeHours:    "🕗 Активные часы",
 	KeyButtonToggleUnit:     "💨 Единица ветра",
 	KeyButtonChangeLanguage: "🌍 Язык",
 	KeyButtonPause:          "⏸ Поставить на паузу",
@@ -159,6 +160,9 @@ var catalogRU = map[Key]string{
 	KeyCitySaved:      "Город: <b>%s</b>. Таймзона: %s.",
 	KeyTimeSaved:      "Утренний отчёт в <b>%s</b> (%s).",
 	KeyTimeInvalid:    "Это не похоже на время. Пришли в формате ЧЧ:ММ, например 07:00.",
+	KeyAskHours:       "Пришли часы, которые показывать в отчёте, в формате ЧЧ-ЧЧ, например 07-22.",
+	KeyHoursSaved:     "Активные часы: <b>%s</b>.",
+	KeyHoursInvalid:   "Это не похоже на диапазон часов. Пришли в формате ЧЧ-ЧЧ, например 07-22, начало раньше конца.",
 	KeyUnitSaved:      "Единица ветра: <b>%s</b>.",
 	KeyLanguageSaved:  "Язык: %s.",
 	KeyLanguageChoose: "Выбери язык:",

@@ -145,6 +145,7 @@ var catalogEN = map[Key]string{
 
 	KeyButtonChangeCity:     "🏙 Change city",
 	KeyButtonChangeTime:     "⏰ Change time",
+	KeyButtonChangeHours:    "🕗 Active hours",
 	KeyButtonToggleUnit:     "💨 Wind unit",
 	KeyButtonChangeLanguage: "🌍 Language",
 	KeyButtonPause:          "⏸ Pause delivery",
@@ -159,6 +160,9 @@ var catalogEN = map[Key]string{
 	KeyCitySaved:      "City set to <b>%s</b>. Timezone: %s.",
 	KeyTimeSaved:      "Morning report set to <b>%s</b> (%s).",
 	KeyTimeInvalid:    "That does not look like a time. Send it as HH:MM, for example 07:00.",
+	KeyAskHours:       "Send the hours the report should cover as HH-HH, for example 07-22.",
+	KeyHoursSaved:     "Active hours set to <b>%s</b>.",
+	KeyHoursInvalid:   "That does not look like an hour range. Send it as HH-HH, for example 07-22, with the start before the end.",
 	KeyUnitSaved:      "Wind unit set to <b>%s</b>.",
 	KeyLanguageSaved:  "Language set to %s.",
 	KeyLanguageChoose: "Pick a language:",

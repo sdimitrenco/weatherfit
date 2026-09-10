@@ -131,6 +131,7 @@ func (b *Bot) registerCommands(ctx context.Context) {
 		{Command: "settings", Description: printer.T(i18n.KeyButtonSettings)},
 		{Command: "city", Description: printer.T(i18n.KeyButtonChangeCity)},
 		{Command: "time", Description: printer.T(i18n.KeyButtonChangeTime)},
+		{Command: "hours", Description: printer.T(i18n.KeyButtonChangeHours)},
 		{Command: "units", Description: printer.T(i18n.KeyButtonToggleUnit)},
 		{Command: "language", Description: printer.T(i18n.KeyButtonChangeLanguage)},
 		{Command: "help", Description: "help"},
@@ -230,6 +231,12 @@ func (b *Bot) handleCommand(ctx context.Context, subscriber domain.Subscriber, t
 			return
 		}
 		b.applyTime(ctx, subscriber, argument)
+	case commandHours:
+		if argument == "" {
+			b.askHours(ctx, subscriber)
+			return
+		}
+		b.applyHours(ctx, subscriber, argument)
 	case commandUnits:
 		b.toggleUnit(ctx, subscriber)
 	case commandLanguage:
@@ -271,6 +278,8 @@ func (b *Bot) handlePendingInput(ctx context.Context, subscriber domain.Subscrib
 		b.searchCity(ctx, subscriber, text)
 	case domain.PendingTime:
 		b.applyTime(ctx, subscriber, text)
+	case domain.PendingHours:
+		b.applyHours(ctx, subscriber, text)
 	case domain.PendingNone:
 	}
 }
@@ -295,6 +304,8 @@ func (b *Bot) handleCallback(ctx context.Context, query *models.CallbackQuery) {
 		b.askCity(ctx, subscriber)
 	case data == callbackAskTime:
 		b.askTime(ctx, subscriber)
+	case data == callbackAskHours:
+		b.askHours(ctx, subscriber)
 	case data == callbackUnit:
 		b.toggleUnit(ctx, subscriber)
 	case data == callbackLangMenu:
@@ -435,6 +446,25 @@ func (b *Bot) askTime(ctx context.Context, subscriber domain.Subscriber) {
 		return
 	}
 	b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyAskTime), nil)
+}
+
+func (b *Bot) askHours(ctx context.Context, subscriber domain.Subscriber) {
+	if err := b.subscriptions.SetPending(ctx, subscriber.ChatID, domain.PendingHours); err != nil {
+		b.fail(ctx, subscriber.ChatID, "не удалось сохранить ожидание активных часов", err)
+		return
+	}
+	b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyAskHours), nil)
+}
+
+func (b *Bot) applyHours(ctx context.Context, subscriber domain.Subscriber, raw string) {
+	updated, err := b.subscriptions.SetActiveHours(ctx, subscriber.ChatID, raw)
+	if err != nil {
+		b.reply(ctx, subscriber.ChatID, b.text(subscriber, i18n.KeyHoursInvalid), nil)
+		return
+	}
+	b.reply(ctx, updated.ChatID,
+		b.text(updated, i18n.KeyHoursSaved, updated.ActiveHours.String()),
+		mainKeyboard(b.printer(updated)))
 }
 
 func (b *Bot) searchCity(ctx context.Context, subscriber domain.Subscriber, query string) {

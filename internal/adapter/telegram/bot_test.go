@@ -768,3 +768,75 @@ func TestMatchButton(t *testing.T) {
 		t.Error("произвольный текст не должен считаться кнопкой")
 	}
 }
+
+func TestChangeActiveHours(t *testing.T) {
+	harness := newHarness(t, openAccess{}, newMemoryStore(subscriber(42, i18n.Russian)))
+
+	harness.bot.api.ProcessUpdate(context.Background(), callback(42, callbackAskHours))
+	pending, _ := harness.store.Get(context.Background(), 42)
+	if pending.Pending != domain.PendingHours {
+		t.Fatalf("ожидание ввода = %q", pending.Pending)
+	}
+
+	harness.api.reset()
+	harness.bot.api.ProcessUpdate(context.Background(), textMessage(42, "09-18", "ru"))
+
+	stored, _ := harness.store.Get(context.Background(), 42)
+	if stored.ActiveHours.String() != "09-18" {
+		t.Errorf("активные часы = %q", stored.ActiveHours)
+	}
+	if !strings.Contains(harness.api.last(t).Text, "09-18") {
+		t.Errorf("подтверждение без часов:\n%s", harness.api.last(t).Text)
+	}
+}
+
+func TestChangeActiveHoursRejectsGarbage(t *testing.T) {
+	harness := newHarness(t, openAccess{}, newMemoryStore(subscriber(42, i18n.Russian)))
+
+	harness.bot.api.ProcessUpdate(context.Background(), textMessage(42, "/hours 22-07", "ru"))
+
+	if got := harness.api.last(t).Text; got != i18n.For(i18n.Russian).T(i18n.KeyHoursInvalid) {
+		t.Errorf("ответ = %q", got)
+	}
+	stored, _ := harness.store.Get(context.Background(), 42)
+	if stored.ActiveHours.String() != "07-22" {
+		t.Errorf("часы не должны меняться: %q", stored.ActiveHours)
+	}
+}
+
+func TestActiveHoursNarrowReport(t *testing.T) {
+	own := subscriber(42, i18n.Russian)
+	own.ActiveHours = domain.HourWindow{Start: 9, End: 12}
+	harness := newHarness(t, openAccess{}, newMemoryStore(own))
+
+	harness.bot.api.ProcessUpdate(context.Background(), textMessage(42, "/tomorrow", "ru"))
+
+	message := harness.api.last(t)
+	for _, hour := range []string{"09 ", "10 ", "11 ", "12 "} {
+		if !strings.Contains(message.Text, hour) {
+			t.Errorf("в отчёте нет часа %q:\n%s", hour, message.Text)
+		}
+	}
+	if strings.Contains(message.Text, "\n13 ") || strings.Contains(message.Text, "\n08 ") {
+		t.Errorf("в отчёте есть часы вне окна:\n%s", message.Text)
+	}
+}
+
+func TestSettingsHasActiveHoursButton(t *testing.T) {
+	harness := newHarness(t, openAccess{}, newMemoryStore(subscriber(42, i18n.English)))
+
+	harness.bot.api.ProcessUpdate(context.Background(), textMessage(42, "/settings", "en"))
+
+	message := harness.api.last(t)
+	found := false
+	for _, row := range message.ReplyMarkup.InlineKeyboard {
+		for _, button := range row {
+			if button.CallbackData == callbackAskHours {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("в настройках нет кнопки активных часов: %+v", message.ReplyMarkup.InlineKeyboard)
+	}
+}
